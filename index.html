@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GKS Campus Bridge - Student Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet CSS & JS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Транскрипция: пиньинь для китайского и ромадзи для японской каны -->
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/umd/wanakana.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0F19;
+            color: #F1F5F9;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1E293B;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        .leaflet-tile-pane {
+            filter: brightness(0.85) contrast(1.2) invert(0.9) hue-rotate(200deg);
+        }
+        .leaflet-container {
+            background: #0f172a !important;
+            border-radius: 0.75rem;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 antialiased">
+
+    <!-- Modal Registration / Edit Profile -->
+    <div id="registerModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center mx-auto border border-blue-500/30">
+                    <i data-lucide="user-plus" class="w-6 h-6"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white" data-i18n="regTitle">Профиль студента</h2>
+                <p class="text-xs text-slate-400" data-i18n="regSubtitle">Заполните данные для доступа к сервисам</p>
+            </div>
+
+            <form onsubmit="handleRegistration(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="labelName">Ваше имя</label>
+                    <input type="text" id="regName" required placeholder="Name" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:border-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Страна</label>
+                    <select id="regCountry" onchange="onRegCountryChange()" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:border-blue-500 focus:outline-none"></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="labelUni">Ваш Университет</label>
+                    <select id="regUniversity" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:border-blue-500 focus:outline-none"></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-2" data-i18n="labelAvatar">Аватар</label>
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="avatar" value="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" checked class="peer hidden">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full border-2 border-transparent peer-checked:border-blue-500 object-cover">
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="avatar" value="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="peer hidden">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full border-2 border-transparent peer-checked:border-blue-500 object-cover">
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="avatar" value="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" class="peer hidden">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full border-2 border-transparent peer-checked:border-blue-500 object-cover">
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="avatar" value="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80" class="peer hidden">
+                            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full border-2 border-transparent peer-checked:border-blue-500 object-cover">
+                        </label>
+                    </div>
+
+                    <!-- Gallery Upload Button -->
+                    <div class="relative">
+                        <input type="file" id="avatarFileInput" accept="image/*" onchange="handleCustomAvatar(event)" class="hidden">
+                        <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="w-full py-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300 rounded-xl flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="image" class="w-4 h-4 text-blue-400"></i>
+                            <span data-i18n="uploadGallery">Загрузить из галереи</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-blue-600/30" data-i18n="btnSaveProfile">
+                    Сохранить профиль
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-40 w-full glass-panel border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-red-500 p-0.5 shadow-lg shadow-blue-500/20">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i data-lucide="graduation-cap" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-base sm:text-lg leading-tight text-white">GKS Campus Bridge</h1>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full">v4.5</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Global Korea Scholarship Student Assistant</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- App Interface Language Selector -->
+                <div class="relative">
+                    <select id="appLanguageSelect" onchange="changeAppLanguage(this.value)" class="bg-slate-950 text-xs font-medium border border-slate-700/80 rounded-full px-3 py-1.5 text-blue-400 focus:outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="ru">Русский (RU)</option>
+                        <option value="en">🌐 English (EN)</option>
+                        <option value="ko">한국어 (KO)</option>
+                        <option value="de">Deutsch (DE)</option>
+                        <option value="kk">Қазақша (KK)</option>
+                        <option value="fr">Français (FR)</option>
+                        <option value="es">Español (ES)</option>
+                        <option value="ja">日本語 (JA)</option>
+                        <option value="zh">中文 (ZH)</option>
+                        <option value="pt">Português (PT)</option>
+                        <option value="tr">Türkçe (TR)</option>
+                        <option value="ar">العربية (AR)</option>
+                    </select>
+                </div>
+
+                <div id="profileWidget" class="flex items-center gap-2.5 bg-slate-800/80 border border-slate-700/60 rounded-full py-1 px-2.5 cursor-pointer" onclick="document.getElementById('registerModal').classList.remove('hidden')">
+                    <img id="userAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-7 h-7 rounded-full object-cover border border-blue-400">
+                    <div class="text-left hidden md:block">
+                        <p id="userName" class="text-xs font-semibold text-white">Гость</p>
+                        <p id="userUni" class="text-[10px] text-slate-400">Seoul National Univ.</p>
+                    </div>
+                    <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400 ml-1"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <nav class="flex items-center gap-2 border-b border-slate-800 overflow-x-auto custom-scrollbar pb-2">
+            <button onclick="switchTab('translator')" id="tab-btn-translator" class="tab-btn active flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white shadow-lg shadow-blue-600/20 whitespace-nowrap">
+                <i data-lucide="languages" class="w-4 h-4"></i>
+                <span data-i18n="navTranslator">Smart Translator</span>
+            </button>
+            <button onclick="switchTab('finance')" id="tab-btn-finance" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60 whitespace-nowrap">
+                <i data-lucide="wallet" class="w-4 h-4"></i>
+                <span data-i18n="navFinance">Финансовый Трекер</span>
+            </button>
+            <button onclick="switchTab('map')" id="tab-btn-map" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60 whitespace-nowrap">
+                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                <span data-i18n="navMap">Карта Кампуса</span>
+            </button>
+            <button onclick="switchTab('checklist')" id="tab-btn-checklist" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60 whitespace-nowrap">
+                <i data-lucide="check-square" class="w-4 h-4"></i>
+                <span data-i18n="navChecklist">Чек-лист</span>
+            </button>
+            <button onclick="switchTab('emergency')" id="tab-btn-emergency" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60 whitespace-nowrap">
+                <i data-lucide="phone-call" class="w-4 h-4"></i>
+                <span data-i18n="navEmergency">Экстренные вызовы</span>
+            </button>
+        </nav>
+
+        <!-- TAB 1: TRANSLATOR -->
+        <section id="tab-content-translator" class="tab-content block space-y-6">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2" data-i18n="transTitle">
+                        <i data-lucide="sparkles" class="w-5 h-5 text-blue-400"></i>
+                        Адаптивный переводчик с транскрипцией
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1" data-i18n="transSub">Выбирайте роль собеседника для правильной степени вежливости и транскрипции.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300 block uppercase tracking-wider" data-i18n="selectRole">С кем вы общаетесь?:</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                        <button onclick="selectRole('Professor')" id="role-Professor" class="role-btn active p-3 bg-blue-600 text-white rounded-xl border border-blue-500/50 text-left transition-all">
+                            <i data-lucide="graduation-cap" class="w-4 h-4 mb-1"></i>
+                            <p class="text-xs font-bold">Professor</p>
+                            <p class="text-[10px] opacity-80">Высокий 존댓말</p>
+                        </button>
+                        <button onclick="selectRole('Immigration officer')" id="role-Immigration officer" class="role-btn p-3 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-left transition-all">
+                            <i data-lucide="shield-check" class="w-4 h-4 mb-1"></i>
+                            <p class="text-xs font-bold">Immigration</p>
+                            <p class="text-[10px] text-slate-500">Официальный 니다</p>
+                        </button>
+                        <button onclick="selectRole('Doctor')" id="role-Doctor" class="role-btn p-3 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-left transition-all">
+                            <i data-lucide="stethoscope" class="w-4 h-4 mb-1"></i>
+                            <p class="text-xs font-bold">Doctor</p>
+                            <p class="text-[10px] text-slate-500">Медицинский</p>
+                        </button>
+                        <button onclick="selectRole('Bank employee')" id="role-Bank employee" class="role-btn p-3 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-left transition-all">
+                            <i data-lucide="building-2" class="w-4 h-4 mb-1"></i>
+                            <p class="text-xs font-bold">Bank Staff</p>
+                            <p class="text-[10px] text-slate-500">Деловой</p>
+                        </button>
+                        <button onclick="selectRole('Landlord')" id="role-Landlord" class="role-btn p-3 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-left transition-all">
+                            <i data-lucide="home" class="w-4 h-4 mb-1"></i>
+                            <p class="text-xs font-bold">Landlord</p>
+                            <p class="text-[10px] text-slate-500">Уважительный</p>
+                        </button>
+                        <button onclick="selectRole('Friend')" id="role-Friend" class="role-btn p-3 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-left transition-all">
+                            <i data-lucide="smile" class="w-4 h-4 mb-1"></i>
+                            <p class="text-xs font-bold">Friend</p>
+                            <p class="text-[10px] text-slate-500">Неформальный 반말</p>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-semibold text-slate-300 block" data-i18n="inputText">Введите текст:</label>
+                            <select id="sourceLanguage" onchange="performTranslation()" class="bg-slate-950 text-xs border border-slate-800 rounded-lg px-2 py-1 text-blue-400 focus:outline-none">
+                                <option value="auto">🔍 Авто-определение</option>
+                                <option value="ru">Русский</option>
+                                <option value="en">English</option>
+                                <option value="ko">Korean (한국어)</option>
+                                <option value="de">German (Deutsch)</option>
+                                <option value="kk">Kazakh (Қазақша)</option>
+                                <option value="fr">French (Français)</option>
+                                <option value="es">Spanish (Español)</option>
+                                <option value="ja">Japanese (日本語)</option>
+                                <option value="zh">Chinese (中文)</option>
+                                <option value="tr">Turkish (Türkçe)</option>
+                                <option value="pt">Portuguese (Português)</option>
+                                <option value="it">Italian (Italiano)</option>
+                            </select>
+                        </div>
+                        <textarea id="translatorInput" rows="6" maxlength="3000" oninput="scheduleTranslation()" placeholder="Например: Здравствуйте, можно задать вам вопрос?" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none custom-scrollbar resize-none"></textarea>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-semibold text-slate-300 block" data-i18n="translationResult">Перевод и транскрипция:</label>
+                            <select id="targetLanguage" onchange="performTranslation()" class="bg-slate-950 text-xs border border-slate-800 rounded-lg px-2 py-1 text-blue-400 focus:outline-none">
+                                <option value="ko">Korean (한국어)</option>
+                                <option value="de">German (Deutsch)</option>
+                                <option value="kk">Kazakh (Қазақша)</option>
+                                <option value="fr">French (Français)</option>
+                                <option value="es">Spanish (Español)</option>
+                                <option value="ja">Japanese (日本語)</option>
+                                <option value="zh">Chinese (中文)</option>
+                                <option value="tr">Turkish (Türkçe)</option>
+                                <option value="pt">Portuguese (Português)</option>
+                                <option value="it">Italian (Italiano)</option>
+                                <option value="ru">Russian (Русский)</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <div id="translatorOutput" class="w-full h-[90px] bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-emerald-400 font-mono leading-relaxed overflow-y-auto custom-scrollbar">
+                                [Перевод появится здесь...]
+                            </div>
+                            <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1" data-i18n="transcriptionLabel">📢 Транскрипция / Чтение:</span>
+                                <div id="transcriptionOutput" class="text-xs text-blue-300 font-mono italic leading-relaxed">
+                                    [Транскрипция появится здесь...]
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button onclick="performTranslation()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30">
+                        <span data-i18n="btnTranslate">Перевести</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: FINANCE TRACKER -->
+        <section id="tab-content-finance" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="wallet" class="w-5 h-5 text-emerald-400"></i>
+                        <span data-i18n="financeTitle">Студенческий Финансовый Трекер</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1" data-i18n="financeSub">Управляйте расходами и стипендиями в Корее (₩ KRW)</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <p class="text-xs text-slate-400" data-i18n="totalIncome">Общий Доход</p>
+                        <p id="totalIncome" class="text-xl font-bold text-emerald-400">₩0</p>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <p class="text-xs text-slate-400" data-i18n="totalExpense">Общий Расход</p>
+                        <p id="totalExpense" class="text-xl font-bold text-rose-400">₩0</p>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <p class="text-xs text-slate-400" data-i18n="balance">Остаток Баланса</p>
+                        <p id="totalBalance" class="text-xl font-bold text-blue-400">₩0</p>
+                    </div>
+                </div>
+
+                <form onsubmit="addTransaction(event)" class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300 block mb-1" data-i18n="desc">Описание</label>
+                        <input type="text" id="financeDesc" required placeholder="GKS Stipend" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300 block mb-1" data-i18n="amount">Сумма (₩ KRW)</label>
+                        <input type="number" id="financeAmount" required placeholder="1000000" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300 block mb-1" data-i18n="type">Тип</label>
+                        <select id="financeType" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                            <option value="income">Доход (+)</option>
+                            <option value="expense">Расход (-)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg text-xs transition-all flex items-center justify-center gap-1">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span data-i18n="btnAdd">Добавить</span>
+                    </button>
+                </form>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-[10px]">
+                            <tr>
+                                <th class="p-3">Описание</th>
+                                <th class="p-3">Тип</th>
+                                <th class="p-3">Сумма</th>
+                                <th class="p-3 text-right">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financeList" class="divide-y divide-slate-800/60"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: CAMPUS MAP -->
+        <section id="tab-content-map" class="tab-content hidden flex-1 flex flex-col gap-4">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="map" class="w-5 h-5 text-blue-400"></i>
+                        <h2 class="text-base font-semibold text-white" data-i18n="mapTitle">Карта объектов рядом с кампусом</h2>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="mapCountry" onchange="onMapCountryChange()" class="bg-slate-950 text-xs border border-slate-700 rounded-lg px-2 py-1.5 text-blue-400 focus:outline-none"></select>
+                        <select id="mapUniversity" onchange="onMapUniversityChange()" class="bg-slate-950 text-xs border border-slate-700 rounded-lg px-2 py-1.5 text-blue-400 focus:outline-none max-w-[220px]"></select>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <button data-cat="all" onclick="filterMapMarkers('all')" class="map-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white">Все</button>
+                    <button data-cat="vegan" onclick="filterMapMarkers('vegan')" class="map-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">🥗 Vegan</button>
+                    <button data-cat="halal" onclick="filterMapMarkers('halal')" class="map-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">🥙 Halal</button>
+                    <button data-cat="24h" onclick="filterMapMarkers('24h')" class="map-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">🌙 24/7 Store</button>
+                    <button data-cat="pharmacy" onclick="filterMapMarkers('pharmacy')" class="map-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">💊 Аптеки</button>
+                    <button data-cat="hospital" onclick="filterMapMarkers('hospital')" class="map-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">🏥 Больницы</button>
+                </div>
+
+                <p id="mapStatus" class="text-xs text-slate-400"></p>
+
+                <div id="mapContainer" class="w-full h-[500px] rounded-xl overflow-hidden border border-slate-800 relative shadow-inner"></div>
+
+                <p id="mapLinks" class="text-xs text-slate-400 leading-relaxed"></p>
+            </div>
+        </section>
+
+        <!-- TAB 4: CHECKLIST & TASKS -->
+        <section id="tab-content-checklist" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-6">
+                <!-- Progress Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white mb-1" data-i18n="checklistTitle">Чек-лист прибытия и задачи</h2>
+                        <p class="text-xs text-slate-400" data-i18n="checklistSub">Отслеживайте прогресс выполнения обязательных и личных шагов</p>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="bg-slate-950 border border-slate-800 px-4 py-3 rounded-xl min-w-[220px]">
+                        <div class="flex justify-between text-xs font-medium mb-1.5">
+                            <span class="text-slate-400" data-i18n="progressLabel">Прогресс:</span>
+                            <span id="checklistPercentage" class="text-emerald-400 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div id="checklistProgressBar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Task Input -->
+                <form onsubmit="addCustomTask(event)" class="flex gap-2">
+                    <input type="text" id="newTaskInput" required placeholder="Добавить свою задачу..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:border-blue-500 focus:outline-none">
+                    <button type="submit" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-blue-600/30">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span data-i18n="btnAddTask">Добавить задачу</span>
+                    </button>
+                </form>
+
+                <div id="checklistItems" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            </div>
+        </section>
+
+        <!-- TAB 5: EMERGENCY CONTACTS -->
+        <section id="tab-content-emergency" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6">
+                <h2 id="emergencyTitle" class="text-lg font-bold text-white mb-4">Экстренные службы</h2>
+                <div id="emergencyGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+                <p class="text-[11px] text-slate-500 mt-4">Номера могут меняться — перед поездкой проверьте их на сайте посольства или университета.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript Logic & Complete Dictionary -->
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('gks_user')) || null;
+        let activeRole = 'Professor';
+        let mapInstance = null;
+        let mapMarkers = [];
+        let financeData = JSON.parse(localStorage.getItem('gks_finance')) || [];
+
+        const CHECKLIST_DEFAULTS = {
+            KR: [
+                { id: 'arc', text: 'Подача на ARC (Alien Registration Card)', desc: 'Обязательно в течение 90 дней', done: false },
+                { id: 'bank', text: 'Открытие банковского счета', desc: 'Для ежемесячной выплаты стипендии GKS', done: false },
+                { id: 'sim', text: 'Корейская SIM-карта', desc: 'Оформление на имя по паспорту/ARC', done: false },
+                { id: 'tmoney', text: 'Покупка карты T-Money', desc: 'В CU/GS25 для проезда на транспорте', done: false }
+            ],
+            CN: [
+                { id: 'cn-reg', text: 'Регистрация проживания в полиции', desc: 'В течение 24 часов после прибытия (отель делает это сам)', done: false },
+                { id: 'cn-permit', text: 'Вид на жительство (居留许可)', desc: 'Подать в течение 30 дней после въезда по студенческой визе', done: false },
+                { id: 'cn-bank', text: 'Открытие банковского счета', desc: 'С паспортом и видом на жительство', done: false },
+                { id: 'cn-sim', text: 'Китайская SIM-карта', desc: 'Оформляется по паспорту (реальное имя)', done: false },
+                { id: 'cn-pay', text: 'Alipay и WeChat Pay', desc: 'Основные способы оплаты в Китае', done: false }
+            ],
+            JP: [
+                { id: 'jp-card', text: 'Карта резидента (在留カード)', desc: 'Выдаётся в аэропорту при въезде, носите с собой', done: false },
+                { id: 'jp-addr', text: 'Регистрация адреса в мэрии (転入届)', desc: 'В течение 14 дней после переезда', done: false },
+                { id: 'jp-ins', text: 'Национальное медстрахование (国民健康保険)', desc: 'Оформляется в мэрии, обычно в те же 14 дней', done: false },
+                { id: 'jp-bank', text: 'Открытие банковского счета', desc: 'С картой резидента и печатью/подписью', done: false },
+                { id: 'jp-ic', text: 'IC-карта (Suica / PASMO)', desc: 'Для метро, поездов и магазинов', done: false }
+            ]
+        };
+
+        let checklistTasks = [];
+
+        const COUNTRIES = {
+            KR: { label: '🇰🇷 Южная Корея', lang: 'ko' },
+            CN: { label: '🇨🇳 Китай', lang: 'zh' },
+            JP: { label: '🇯🇵 Япония', lang: 'ja' }
+        };
+
+        const EMERGENCY = {
+            KR: [
+                { label: 'Иммиграция (1345)', number: '1345', tel: '1345', icon: 'phone', bg: 'bg-blue-600/20', fg: 'text-blue-400' },
+                { label: 'Полиция (112)', number: '112', tel: '112', icon: 'shield-alert', bg: 'bg-red-600/20', fg: 'text-red-400' },
+                { label: 'Скорая помощь и пожарные (119)', number: '119', tel: '119', icon: 'ambulance', bg: 'bg-amber-600/20', fg: 'text-amber-400' },
+                { label: 'Туристическая линия на разных языках (1330)', number: '1330', tel: '1330', icon: 'phone-call', bg: 'bg-emerald-600/20', fg: 'text-emerald-400' }
+            ],
+            CN: [
+                { label: 'Полиция (110)', number: '110', tel: '110', icon: 'shield-alert', bg: 'bg-red-600/20', fg: 'text-red-400' },
+                { label: 'Скорая помощь (120)', number: '120', tel: '120', icon: 'ambulance', bg: 'bg-amber-600/20', fg: 'text-amber-400' },
+                { label: 'Пожарные (119)', number: '119', tel: '119', icon: 'flame', bg: 'bg-orange-600/20', fg: 'text-orange-400' },
+                { label: 'Иммиграционная служба (12367)', number: '12367', tel: '12367', icon: 'phone', bg: 'bg-blue-600/20', fg: 'text-blue-400' }
+            ],
+            JP: [
+                { label: 'Полиция (110)', number: '110', tel: '110', icon: 'shield-alert', bg: 'bg-red-600/20', fg: 'text-red-400' },
+                { label: 'Скорая помощь и пожарные (119)', number: '119', tel: '119', icon: 'ambulance', bg: 'bg-amber-600/20', fg: 'text-amber-400' },
+                { label: 'Горячая линия для туристов (24 ч, JNTO)', number: '050-3816-2787', tel: '05038162787', icon: 'phone-call', bg: 'bg-emerald-600/20', fg: 'text-emerald-400' },
+                { label: 'Иммиграционная служба, справка', number: '0570-013904', tel: '0570013904', icon: 'phone', bg: 'bg-blue-600/20', fg: 'text-blue-400' }
+            ]
+        };
+
+        // ---------- Дополнительные страны (из списка университетов) ----------
+        Object.assign(COUNTRIES, {
+            US:   { label: '🇺🇸 США', lang: 'en' },
+            GB:   { label: '🇬🇧 Великобритания', lang: 'en' },
+            CH:   { label: '🇨🇭 Швейцария', lang: 'de' },
+            SG:   { label: '🇸🇬 Сингапур', lang: 'en' },
+            AU:   { label: '🇦🇺 Австралия', lang: 'en' },
+            DE:   { label: '🇩🇪 Германия', lang: 'de' },
+            CA:   { label: '🇨🇦 Канада', lang: 'en' },
+            FR:   { label: '🇫🇷 Франция', lang: 'fr' },
+            NL:   { label: '🇳🇱 Нидерланды', lang: 'en' },
+            SE:   { label: '🇸🇪 Швеция', lang: 'en' },
+            HK:   { label: '🇭🇰 Гонконг', lang: 'en' },
+            BE:   { label: '🇧🇪 Бельгия', lang: 'en' },
+            DKNO: { label: '🇩🇰🇳🇴 Дания и Норвегия', lang: 'en' },
+            IT:   { label: '🇮🇹 Италия', lang: 'it' },
+            ES:   { label: '🇪🇸 Испания', lang: 'es' },
+            AT:   { label: '🇦🇹 Австрия', lang: 'de' },
+            IE:   { label: '🇮🇪 Ирландия', lang: 'en' }
+        });
+
+        (function addExtraEmergencyAndChecklists() {
+            const STYLE = {
+                police: ['shield-alert', 'bg-red-600/20', 'text-red-400'],
+                amb:    ['ambulance', 'bg-amber-600/20', 'text-amber-400'],
+                fire:   ['flame', 'bg-orange-600/20', 'text-orange-400'],
+                gen:    ['phone-call', 'bg-emerald-600/20', 'text-emerald-400'],
+                info:   ['phone', 'bg-blue-600/20', 'text-blue-400']
+            };
+            const em = (kind, label, number) => {
+                const [icon, bg, fg] = STYLE[kind];
+                return { label: `${label} (${number})`, number, tel: number.replace(/[^\d+]/g, ''), icon, bg, fg };
+            };
+
+            Object.assign(EMERGENCY, {
+                US:   [em('gen', 'Полиция, скорая, пожарные', '911'), em('info', 'Кризисная линия (звонок или SMS)', '988')],
+                GB:   [em('gen', 'Полиция, скорая, пожарные', '999'), em('info', 'Медицинская помощь без экстренности (NHS)', '111'), em('police', 'Полиция, не экстренные случаи', '101')],
+                CH:   [em('police', 'Полиция', '117'), em('amb', 'Скорая помощь', '144'), em('fire', 'Пожарные', '118'), em('gen', 'Единый номер экстренных служб', '112')],
+                SG:   [em('police', 'Полиция', '999'), em('amb', 'Скорая помощь и пожарные', '995')],
+                AU:   [em('gen', 'Полиция, скорая, пожарные', '000'), em('info', 'Кризисная линия Lifeline', '13 11 14')],
+                DE:   [em('police', 'Полиция', '110'), em('amb', 'Скорая помощь и пожарные', '112'), em('info', 'Дежурный врач (не экстренно)', '116117')],
+                CA:   [em('gen', 'Полиция, скорая, пожарные', '911'), em('info', 'Кризисная линия (звонок или SMS)', '988')],
+                FR:   [em('police', 'Полиция', '17'), em('amb', 'Скорая помощь (SAMU)', '15'), em('fire', 'Пожарные', '18'), em('gen', 'Единый номер экстренных служб', '112')],
+                NL:   [em('gen', 'Полиция, скорая, пожарные', '112'), em('police', 'Полиция, не экстренные случаи', '0900-8844')],
+                SE:   [em('gen', 'Полиция, скорая, пожарные', '112'), em('police', 'Полиция, не экстренные случаи', '114 14'), em('info', 'Медицинская консультация', '1177')],
+                HK:   [em('gen', 'Полиция, скорая, пожарные', '999')],
+                BE:   [em('gen', 'Скорая помощь и пожарные', '112'), em('police', 'Полиция', '101')],
+                DKNO: [em('gen', 'Дания: все службы / Норвегия: полиция', '112'), em('amb', 'Норвегия: скорая помощь', '113'), em('fire', 'Норвегия: пожарные', '110')],
+                IT:   [em('gen', 'Единый номер экстренных служб', '112'), em('police', 'Полиция', '113'), em('amb', 'Скорая помощь', '118'), em('fire', 'Пожарные', '115')],
+                ES:   [em('gen', 'Единый номер экстренных служб', '112'), em('police', 'Национальная полиция', '091'), em('amb', 'Скорая помощь (в большинстве регионов)', '061')],
+                AT:   [em('police', 'Полиция', '133'), em('amb', 'Скорая помощь', '144'), em('fire', 'Пожарные', '122'), em('gen', 'Единый номер экстренных служб', '112')],
+                IE:   [em('gen', 'Полиция, скорая, пожарные', '112 / 999')]
+            });
+
+            const generic = (p, permitText) => [
+                { id: p + '-permit', text: permitText, desc: 'Документы и сроки уточните в международном офисе университета', done: false },
+                { id: p + '-addr', text: 'Регистрация адреса проживания', desc: 'Проверьте, обязательна ли она в вашей стране и в какие сроки', done: false },
+                { id: p + '-bank', text: 'Открытие банковского счета', desc: 'Обычно нужны паспорт, документ о зачислении и адрес', done: false },
+                { id: p + '-sim', text: 'Местная SIM-карта или eSIM', desc: 'Сравните студенческие тарифы операторов', done: false },
+                { id: p + '-ins', text: 'Медицинская страховка', desc: 'Убедитесь, что полис действует и соответствует требованиям визы', done: false },
+                { id: p + '-transit', text: 'Студенческая карта и проездной', desc: 'Часто даёт скидку на общественный транспорт', done: false }
+            ];
+            const PERMITS = {
+                US: 'Документы студенческой визы (I-20 / DS-2019)', GB: 'Студенческая виза и подтверждение статуса (eVisa)',
+                CH: 'Разрешение на проживание в кантоне', SG: 'Student’s Pass', AU: 'Студенческая виза и её условия',
+                DE: 'Вид на жительство и регистрация адреса (Anmeldung)', CA: 'Разрешение на обучение (Study Permit)',
+                FR: 'Валидация визы / вид на жительство', NL: 'Регистрация в муниципалитете и право на проживание',
+                SE: 'Вид на жительство для учёбы', HK: 'Студенческая виза и удостоверение личности',
+                BE: 'Регистрация в коммуне и вид на жительство', DKNO: 'Вид на жительство для учёбы',
+                IT: 'Разрешение на пребывание (permesso di soggiorno)', ES: 'Карта иностранца-студента (TIE)',
+                AT: 'Регистрация адреса и вид на жительство', IE: 'Иммиграционная регистрация (IRP)'
+            };
+            Object.keys(PERMITS).forEach(cc => { CHECKLIST_DEFAULTS[cc] = generic(cc.toLowerCase(), PERMITS[cc]); });
+        })();
+
+        // Полная локализация интерфейса для всех 12 языков
+        const translations = {
+            ru: {
+                navTranslator: "Smart Translator", navFinance: "Финансовый Трекер", navMap: "Карта Кампуса", navChecklist: "Чек-лист", navEmergency: "Экстренные вызовы",
+                regTitle: "Профиль студента", regSubtitle: "Заполните данные для доступа к сервисам", labelName: "Ваше имя", labelUni: "Ваш Университет", labelAvatar: "Аватар",
+                uploadGallery: "Загрузить из галереи", btnSaveProfile: "Сохранить профиль", transTitle: "Адаптивный переводчик с транскрипцией", transSub: "Выбирайте роль собеседника для правильной степени вежливости и транскрипции.",
+                selectRole: "С кем вы общаетесь?:", inputText: "Введите текст:", translationResult: "Перевод и транскрипция:", transcriptionLabel: "📢 Транскрипция / Чтение:", btnTranslate: "Перевести",
+                financeTitle: "Студенческий Финансовый Трекер", financeSub: "Управляйте расходами и стипендиями в Корее (₩ KRW)", totalIncome: "Общий Доход", totalExpense: "Общий Расход", balance: "Остаток Баланса",
+                desc: "Описание", amount: "Сумма (₩)", type: "Тип", btnAdd: "Добавить", mapTitle: "Карта объектов рядом с кампусом", checklistTitle: "Чек-лист прибытия и задачи", checklistSub: "Отслеживайте прогресс выполнения обязательных и личных шагов", progressLabel: "Прогресс:", btnAddTask: "Добавить задачу", emergencyTitle: "Экстренные службы в Корее"
+            },
+            en: {
+                navTranslator: "Smart Translator", navFinance: "Finance Tracker", navMap: "Campus Map", navChecklist: "Checklist", navEmergency: "Emergency Contacts",
+                regTitle: "Student Profile", regSubtitle: "Fill in details to personalize your experience", labelName: "Your Name", labelUni: "Your University", labelAvatar: "Avatar",
+                uploadGallery: "Upload from Gallery", btnSaveProfile: "Save Profile", transTitle: "Smart Honorific Translator", transSub: "Automatically adapts politeness and phonetic transcription.",
+                selectRole: "Who are you talking to?:", inputText: "Enter text:", translationResult: "Translation & Phonetics:", transcriptionLabel: "📢 Phonetics / Transcription:", btnTranslate: "Translate",
+                financeTitle: "Student Financial Tracker", financeSub: "Track your GKS scholarships and daily expenses in KRW (₩)", totalIncome: "Total Income", totalExpense: "Total Expense", balance: "Balance",
+                desc: "Description", amount: "Amount (₩)", type: "Type", btnAdd: "Add", mapTitle: "Essential Places Near Campus", checklistTitle: "Arrival Checklist & Tasks", checklistSub: "Track mandatory and personal milestones", progressLabel: "Progress:", btnAddTask: "Add Task", emergencyTitle: "Emergency Contacts in Korea"
+            },
+            ko: {
+                navTranslator: "존댓말 번역기", navFinance: "재정 관리", navMap: "캠퍼스 지도", navChecklist: "체크리스트", navEmergency: "긴급 연락처",
+                regTitle: "학생 프로필", regSubtitle: "서비스 이용을 위해 정보를 입력하세요", labelName: "이름", labelUni: "대학교", labelAvatar: "아바타",
+                uploadGallery: "갤러리에서 업로드", btnSaveProfile: "프로필 저장", transTitle: "상대방 맞춤형 존댓말 번역기", transSub: "대화 상대에 따라 적절한 존댓말과 발음 기호를 제공합니다.",
+                selectRole: "대화 상대 선택:", inputText: "텍스트 입력:", translationResult: "번역 및 발음:", transcriptionLabel: "📢 발음 / 로마자 표기:", btnTranslate: "번역하기",
+                financeTitle: "GKS 학생 재정 트래커", financeSub: "장학금 및 지출 내역을 관리하세요 (₩ KRW)", totalIncome: "총 수입", totalExpense: "총 지출", balance: "잔액",
+                desc: "내역", amount: "금액 (₩)", type: "유형", btnAdd: "추가", mapTitle: "캠퍼스 주변 주요 시설", checklistTitle: "한국 정착 체크리스트 및 과제", checklistSub: "필수 및 개인 일정을 추적하세요", progressLabel: "진행률:", btnAddTask: "작업 추가", emergencyTitle: "한국 긴급 연락처"
+            },
+            de: {
+                navTranslator: "Smart Übersetzer", navFinance: "Finanz-Tracker", navMap: "Campus-Karte", navChecklist: "Checkliste", navEmergency: "Notfälle",
+                regTitle: "Studentenprofil", regSubtitle: "Geben Sie Ihre Daten ein", labelName: "Ihr Name", labelUni: "Universität", labelAvatar: "Avatar",
+                uploadGallery: "Aus Galerie hochladen", btnSaveProfile: "Profil speichern", transTitle: "Intelligenter Höflichkeitsübersetzer", transSub: "Passt Grammatik und Lautschrift an die gewählte Rolle an.",
+                selectRole: "Mit wem sprechen Sie?:", inputText: "Text eingeben:", translationResult: "Übersetzung & Lautschrift:", transcriptionLabel: "📢 Lautschrift / Aussprache:", btnTranslate: "Übersetzen",
+                financeTitle: "Studenten-Finanz-Tracker", financeSub: "Verwalten Sie Stipendien und Ausgaben in KRW (₩)", totalIncome: "Einnahmen", totalExpense: "Ausgaben", balance: "Saldo",
+                desc: "Beschreibung", amount: "Betrag (₩)", type: "Typ", btnAdd: "Hinzufügen", mapTitle: "Orte in der Nähe des Campus", checklistTitle: "Ankunfts-Checkliste & Aufgaben", checklistSub: "Verfolgen Sie persönliche und Pflichtaufgaben", progressLabel: "Fortschritt:", btnAddTask: "Aufgabe hinzufügen", emergencyTitle: "Notdienste in Korea"
+            },
+            kk: {
+                navTranslator: "Ақылды аудармашы", navFinance: "Қаржы трекері", navMap: "Кампус картасы", navChecklist: "Чек-лист", navEmergency: "Шұғыл қоңыраулар",
+                regTitle: "Студент профилі", regSubtitle: "Мәліметтерді толтырыңыз", labelName: "Атыңыз", labelUni: "Университет", labelAvatar: "Аватар",
+                uploadGallery: "Галереядан жүктеу", btnSaveProfile: "Сақтау", transTitle: "Әдептілік деңгейі бар аудармашы", transSub: "Сұхбаттасушыға байланысты дұрыс сөйлеу мен транскрипцияны таңдайды.",
+                selectRole: "Кіммен сөйлесіп жатырсыз?:", inputText: "Мәтінді енгізіңіз:", translationResult: "Аударма мен транскрипция:", transcriptionLabel: "📢 Оқылуы / Транскрипциясы:", btnTranslate: "Аудару",
+                financeTitle: "Студенттік қаржы трекері", financeSub: "Кореядағы кірістер мен шығыстарды басқарыңыз (₩ KRW)", totalIncome: "Жалпы кіріс", totalExpense: "Жалпы шығыс", balance: "Баланс",
+                desc: "Сипаттамасы", amount: "Сомасы (₩)", type: "Түрі", btnAdd: "Қосу", mapTitle: "Кампус жанындағы нысандар картасы", checklistTitle: "Келу чек-листі мен тапсырмалар", checklistSub: "Міндетті және жеке қадамдардың орындалуын бақылаңыз", progressLabel: "Прогресс:", btnAddTask: "Тапсырма қосу", emergencyTitle: "Кореядағы шұғыл қызметтер"
+            },
+            fr: {
+                navTranslator: "Traducteur Intelligent", navFinance: "Suivi Financier", navMap: "Carte du Campus", navChecklist: "Check-list", navEmergency: "Urgences",
+                regTitle: "Profil Étudiant", regSubtitle: "Remplissez vos informations", labelName: "Votre Nom", labelUni: "Université", labelAvatar: "Avatar",
+                uploadGallery: "Importer de la galerie", btnSaveProfile: "Enregistrer", transTitle: "Traducteur de politesse avec phonétique", transSub: "Adapte la grammaire et la phonétique selon votre interlocuteur.",
+                selectRole: "À qui parlez-vous ?:", inputText: "Texte:", translationResult: "Traduction & Phonétique:", transcriptionLabel: "📢 Phonétique / Transcriptions:", btnTranslate: "Traduire",
+                financeTitle: "Gestionnaire Financier Étudiant", financeSub: "Gérez vos bourses et dépenses en KRW (₩)", totalIncome: "Revenus", totalExpense: "Dépenses", balance: "Solde",
+                desc: "Description", amount: "Montant (₩)", type: "Type", btnAdd: "Ajouter", mapTitle: "Lieux proches du campus", checklistTitle: "Check-list d'arrivée & Tâches", checklistSub: "Suivez l'avancement de vos étapes", progressLabel: "Progrès:", btnAddTask: "Ajouter une tâche", emergencyTitle: "Services d'urgence en Corée"
+            },
+            es: {
+                navTranslator: "Traductor Inteligente", navFinance: "Control Financiero", navMap: "Mapa del Campus", navChecklist: "Checklist", navEmergency: "Emergencias",
+                regTitle: "Perfil de Estudiante", regSubtitle: "Complete sus datos", labelName: "Su Nombre", labelUni: "Universidad", labelAvatar: "Avatar",
+                uploadGallery: "Subir de la galería", btnSaveProfile: "Guardar", transTitle: "Traductor Inteligente de Cortesía", transSub: "Adapta la cortesía y fonética según con quién hables.",
+                selectRole: "¿Con quién hablas?:", inputText: "Texto:", translationResult: "Traducción y Fonética:", transcriptionLabel: "📢 Fonética / Pronunciación:", btnTranslate: "Traducir",
+                financeTitle: "Rastreador Financiero Estudiantil", financeSub: "Controle sus becas y gastos diarios en KRW (₩)", totalIncome: "Ingresos", totalExpense: "Gastos", balance: "Balance",
+                desc: "Descripción", amount: "Monto (₩)", type: "Tipo", btnAdd: "Agregar", mapTitle: "Lugares cercanos al campus", checklistTitle: "Lista de llegada y tareas", checklistSub: "Siga el progreso de sus tareas", progressLabel: "Progreso:", btnAddTask: "Agregar tarea", emergencyTitle: "Servicios de emergencia en Corea"
+            },
+            ja: {
+                navTranslator: "スマート翻訳機", navFinance: "家計簿", navMap: "キャンパスマップ", navChecklist: "チェックリスト", navEmergency: "緊急連絡先",
+                regTitle: "学生プロフィール", regSubtitle: "情報を入力してください", labelName: "お名前", labelUni: "大学名", labelAvatar: "アバター",
+                uploadGallery: "ギャラリーからアップロード", btnSaveProfile: "保存", transTitle: "敬語レベル適応型翻訳機", transSub: "相手に応じて敬語表現と読み方を自動調整します。",
+                selectRole: "会話の相手:", inputText: "テキスト:", translationResult: "翻訳と発音:", transcriptionLabel: "📢 発音 / 読み方:", btnTranslate: "翻訳",
+                financeTitle: "学生財政トラッカー", financeSub: "奨学金と支出をKRW (₩)で管理します", totalIncome: "収入", totalExpense: "支出", balance: "残高",
+                desc: "内容", amount: "金額 (₩)", type: "タイプ", btnAdd: "追加", mapTitle: "キャンパス周辺の施設", checklistTitle: "到着後のチェックリストとタスク", checklistSub: "進捗状況を追跡します", progressLabel: "進捗率:", btnAddTask: "タスク追加", emergencyTitle: "韓国の緊急連絡先"
+            },
+            zh: {
+                navTranslator: "智能翻译官", navFinance: "财务追踪", navMap: "校园地图", navChecklist: "清单", navEmergency: "紧急求助",
+                regTitle: "学生资料", regSubtitle: "填写详细信息", labelName: "姓名", labelUni: "大学", labelAvatar: "头像",
+                uploadGallery: "从相册上传", btnSaveProfile: "保存", transTitle: "自适应敬语智能翻译", transSub: "根据对象自动调整敬语和音标拼读。",
+                selectRole: "对话对象：", inputText: "文本：", translationResult: "翻译与注音：", transcriptionLabel: "📢 拼音 / 注音：", btnTranslate: "翻译",
+                financeTitle: "留学生财务记账", financeSub: "管理在韩奖学金与日常开销 (₩ KRW)", totalIncome: "总收入", totalExpense: "总支出", balance: "结余",
+                desc: "描述", amount: "金额 (₩)", type: "类型", btnAdd: "添加", mapTitle: "校园周边设施地图", checklistTitle: "入境清单与任务", checklistSub: "追踪个人与必办事项进度", progressLabel: "进度：", btnAddTask: "添加任务", emergencyTitle: "韩国紧急求助电话"
+            },
+            pt: {
+                navTranslator: "Tradutor Inteligente", navFinance: "Controle Financeiro", navMap: "Mapa do Campus", navChecklist: "Checklist", navEmergency: "Emergências",
+                regTitle: "Perfil do Estudante", regSubtitle: "Preencha seus dados", labelName: "Seu Nome", labelUni: "Universidade", labelAvatar: "Avatar",
+                uploadGallery: "Carregar da galeria", btnSaveProfile: "Salvar", transTitle: "Tradutor de Cortesia Inteligente", transSub: "Adapta a gramática e fonética de acordo com a função.",
+                selectRole: "Com quem fala?:", inputText: "Texto:", translationResult: "Tradução e Fonética:", transcriptionLabel: "📢 Fonética / Pronúncia:", btnTranslate: "Traduzir",
+                financeTitle: "Gestor Financeiro Estudantil", financeSub: "Acompanhe bolsas e despesas em KRW (₩)", totalIncome: "Receita", totalExpense: "Despesa", balance: "Saldo",
+                desc: "Descrição", amount: "Valor (₩)", type: "Tipo", btnAdd: "Adicionar", mapTitle: "Locais próximos ao campus", checklistTitle: "Checklist de Chegada & Tarefas", checklistSub: "Acompanhe o progresso das tarefas", progressLabel: "Progresso:", btnAddTask: "Adicionar tarefa", emergencyTitle: "Serviços de emergência na Coreia"
+            },
+            tr: {
+                navTranslator: "Akıllı Çevirmen", navFinance: "Finans Takibi", navMap: "Kampüs Haritası", navChecklist: "Kontrol Listesi", navEmergency: "Acil Durum",
+                regTitle: "Öğrenci Profili", regSubtitle: "Bilgilerinizi doldurun", labelName: "Adınız", labelUni: "Üniversite", labelAvatar: "Avatar",
+                uploadGallery: "Galeriden yükle", btnSaveProfile: "Kaydet", transTitle: "Nezaket Düzeyli Çevirmen", transSub: "Seçilen kişiye göre gramer ve telaffuz sağlar.",
+                selectRole: "Kiminle konuşuyorsunuz?:", inputText: "Metin:", translationResult: "Çeviri ve Okunuş:", transcriptionLabel: "📢 Okunuş / Telaffuz:", btnTranslate: "Çevir",
+                financeTitle: "Öğrenci Finans Takibi", financeSub: "Burslarınızı ve harcamalarınızı KRW (₩) olarak izleyin", totalIncome: "Toplam Gelir", totalExpense: "Toplam Gider", balance: "Bakiye",
+                desc: "Açıklama", amount: "Miktar (₩)", type: "Tür", btnAdd: "Ekle", mapTitle: "Kampüs Yakınındaki Yerler", checklistTitle: "Varış Kontrol Listesi ve Görevler", checklistSub: "İlerlemenizi takip edin", progressLabel: "İlerleme:", btnAddTask: "Görev Ekle", emergencyTitle: "Kore'deki Acil Servisler"
+            },
+            ar: {
+                navTranslator: "المترجم الذكي", navFinance: "المتتبع المالي", navMap: "خريطة الحرم الجامعي", navChecklist: "قائمة التحقق", navEmergency: "الطوارئ",
+                regTitle: "ملف الطالب", regSubtitle: "املأ البيانات الشخصية", labelName: "اسمك", labelUni: "الجامعة", labelAvatar: "الصورة",
+                uploadGallery: "تحميل من المعرض", btnSaveProfile: "حفظ", transTitle: "مترجم التأدب واللفظ الذكي", transSub: "يطابق القواعد واللفظ حسب الشخص.",
+                selectRole: "مع من تتحدث؟:", inputText: "النص:", translationResult: "الترجمة واللفظ:", transcriptionLabel: "📢 طريقة النطق:", btnTranslate: "ترجمة",
+                financeTitle: "المتتبع المالي للطلاب", financeSub: "تتبع المنح والمصروفات بالوون الكوري (₩)", totalIncome: "إجمالي الدخل", totalExpense: "إجمالي المصروفات", balance: "الرصيد",
+                desc: "الوصف", amount: "المبلغ (₩)", type: "النوع", btnAdd: "إضافة", mapTitle: "أماكن هامة بالقرب من الحرم الجامعي", checklistTitle: "قائمة الوصول والمهام", checklistSub: "تتبع تقدم المهام الشحصية", progressLabel: "التقدم:", btnAddTask: "إضافة مهمة", emergencyTitle: "خدمات الطوارئ في كوريا"
+            }
+        };
+
+        // Координаты приблизительные (центр кампуса)
+        const universityCoords = {
+            // --- Южная Корея ---
+            'SNU':   { country: 'KR', lat: 37.459882, lng: 126.951905, name: 'Seoul National University', label: 'Seoul National University (SNU)' },
+            'KU':    { country: 'KR', lat: 37.5894, lng: 127.0323, name: 'Korea University', label: 'Korea University (Anam)' },
+            'YU':    { country: 'KR', lat: 37.5657, lng: 126.9386, name: 'Yonsei University', label: 'Yonsei University (Sinchon)' },
+            'SKKU':  { country: 'KR', lat: 37.5882, lng: 126.9936, name: 'Sungkyunkwan University', label: 'Sungkyunkwan University (SKKU)' },
+            'KAIST': { country: 'KR', lat: 36.3721, lng: 127.3604, name: 'KAIST Campus', label: 'KAIST (Daejeon Campus)' },
+            'HYU':   { country: 'KR', lat: 37.5572, lng: 127.0453, name: 'Hanyang University', label: 'Hanyang University (Seoul)' },
+            'EWHA':  { country: 'KR', lat: 37.5619, lng: 126.9468, name: 'Ewha Womans University', label: 'Ewha Womans University' },
+            'CAU':   { country: 'KR', lat: 37.5039, lng: 126.9570, name: 'Chung-Ang University', label: 'Chung-Ang University' },
+            'POSTECH': { country: 'KR', lat: 36.0141, lng: 129.3258, name: 'POSTECH', label: 'POSTECH (Pohang)' },
+            'PNU':   { country: 'KR', lat: 35.2342, lng: 129.0794, name: 'Pusan National University', label: 'Pusan National University (Busan)' },
+            // --- Китай ---
+            'PKU':   { country: 'CN', lat: 39.9869, lng: 116.3059, name: 'Peking University', label: 'Peking University 北京大学 (Beijing)' },
+            'THU':   { country: 'CN', lat: 40.0000, lng: 116.3264, name: 'Tsinghua University', label: 'Tsinghua University 清华大学 (Beijing)' },
+            'FDU':   { country: 'CN', lat: 31.2987, lng: 121.5033, name: 'Fudan University', label: 'Fudan University 复旦大学 (Shanghai)' },
+            'SJTU':  { country: 'CN', lat: 31.0245, lng: 121.4337, name: 'Shanghai Jiao Tong University', label: 'Shanghai Jiao Tong University 上海交通大学' },
+            'ZJU':   { country: 'CN', lat: 30.2635, lng: 120.1236, name: 'Zhejiang University', label: 'Zhejiang University 浙江大学 (Hangzhou)' },
+            'WHU':   { country: 'CN', lat: 30.5373, lng: 114.3646, name: 'Wuhan University', label: 'Wuhan University 武汉大学' },
+            // --- Япония ---
+            'UTOKYO':   { country: 'JP', lat: 35.7126, lng: 139.7620, name: 'University of Tokyo', label: 'University of Tokyo 東京大学 (Hongo)' },
+            'KYOTO':    { country: 'JP', lat: 35.0262, lng: 135.7808, name: 'Kyoto University', label: 'Kyoto University 京都大学' },
+            'OSAKA':    { country: 'JP', lat: 34.8227, lng: 135.5246, name: 'Osaka University', label: 'Osaka University 大阪大学 (Suita)' },
+            'TOHOKU':   { country: 'JP', lat: 38.2536, lng: 140.8747, name: 'Tohoku University', label: 'Tohoku University 東北大学 (Sendai)' },
+            'WASEDA':   { country: 'JP', lat: 35.7093, lng: 139.7194, name: 'Waseda University', label: 'Waseda University 早稲田大学 (Tokyo)' },
+            'KEIO':     { country: 'JP', lat: 35.6486, lng: 139.7414, name: 'Keio University', label: 'Keio University 慶應義塾大学 (Mita)' },
+            'TITECH':   { country: 'JP', lat: 35.6044, lng: 139.6844, name: 'Institute of Science Tokyo', label: 'Science Tokyo (Tokyo Tech) 東京科学大学 (Ookayama)' },
+            'NAGOYA':   { country: 'JP', lat: 35.1550, lng: 136.9660, name: 'Nagoya University', label: 'Nagoya University 名古屋大学' },
+            'HOKKAIDO': { country: 'JP', lat: 43.0766, lng: 141.3410, name: 'Hokkaido University', label: 'Hokkaido University 北海道大学 (Sapporo)' },
+            'KYUSHU':   { country: 'JP', lat: 33.6245, lng: 130.4230, name: 'Kyushu University', label: 'Kyushu University 九州大学 (Fukuoka)' }
+        };
+
+        // ---------- Университеты из общего списка: страна → город → университет ----------
+        // Формат города: [название, "English name для поиска на карте", "вуз 1;вуз 2;..."]
+        // Координаты новых университетов ищутся на карте автоматически (OpenStreetMap) при первом выборе.
+        const DOC_DB = [
+            ['US', [
+                ["Бостон / Кембридж", "Boston, USA", "Harvard University;Massachusetts Institute of Technology (MIT);Boston University;Northeastern University;Tufts University"],
+                ["Нью-Йорк", "New York City, USA", "Columbia University;New York University (NYU);Cornell Tech (Cornell University);Fordham University;City University of New York (CUNY)"],
+                ["Лос-Анджелес", "Los Angeles, USA", "University of California, Los Angeles (UCLA);University of Southern California (USC);California Institute of Technology (Caltech);Loyola Marymount University;Pepperdine University"],
+                ["Чикаго", "Chicago, USA", "University of Chicago;Northwestern University;University of Illinois Chicago (UIC);Illinois Institute of Technology;DePaul University"],
+                ["Пало-Альто (Силиконовая долина)", "Palo Alto, USA", "Stanford University;Santa Clara University;San Jose State University;University of California, Berkeley;Menlo College"]
+            ]],
+            ['GB', [
+                ["Лондон", "London, UK", "Imperial College London;University College London (UCL);London School of Economics and Political Science (LSE);King’s College London;Queen Mary University of London"],
+                ["Оксфорд", "Oxford, UK", "University of Oxford;Oxford Brookes University;Ruskin College;City of Oxford College;Wycliffe Hall"],
+                ["Кембридж", "Cambridge, UK", "University of Cambridge;Anglia Ruskin University;Cambridge Regional College;Wesley House;Ridley Hall"],
+                ["Эдинбург", "Edinburgh, UK", "University of Edinburgh;Heriot-Watt University;Edinburgh Napier University;Queen Margaret University;Royal College of Surgeons of Edinburgh"],
+                ["Манчестер", "Manchester, UK", "University of Manchester;Manchester Metropolitan University;Royal Northern College of Music;University of Law (Manchester Campus);BIMM Institute Manchester"]
+            ]],
+            ['CH', [
+                ["Цюрих", "Zurich, Switzerland", "ETH Zurich;University of Zurich;Zurich University of Applied Sciences (ZHAW);Zurich University of the Arts (ZHdK);HWZ University of Applied Sciences in Business Administration"],
+                ["Лозанна", "Lausanne, Switzerland", "École Polytechnique Fédérale de Lausanne (EPFL);University of Lausanne;IMD Business School;EHL Hospitality Business School;ECAL (University of Art and Design Lausanne)"],
+                ["Женева", "Geneva, Switzerland", "University of Geneva;Geneva Graduate Institute (IHEID);Geneva School of Diplomacy and International Relations;EU Business School Geneva;International University in Geneva"],
+                ["Берн", "Bern, Switzerland", "University of Bern;Bern University of Applied Sciences (BFH);PHBern (University of Teacher Education);Graduate School for Health Sciences;Bern University of the Arts"],
+                ["Базель", "Basel, Switzerland", "University of Basel;FHNW Academy of Art and Design;FHNW School of Business;FHNW Academy of Music;Department of Biosystems Science and Engineering (ETH Zurich)"]
+            ]],
+            ['SG', [
+                ["Сингапур", "Singapore", "National University of Singapore (NUS);Nanyang Technological University (NTU);Singapore Management University (SMU);Singapore University of Technology and Design (SUTD);Singapore Institute of Technology (SIT)"]
+            ]],
+            ['CN', [
+                ["Пекин", "Beijing, China", "Peking University;Tsinghua University;Renmin University of China;Beijing Normal University;Beihang University"],
+                ["Шанхай", "Shanghai, China", "Fudan University;Shanghai Jiao Tong University;Tongji University;East China Normal University;Shanghai University"],
+                ["Нанкин", "Nanjing, China", "Nanjing University;Southeast University;Nanjing University of Aeronautics and Astronautics;Nanjing University of Science and Technology;Hohai University"],
+                ["Ханчжоу", "Hangzhou, China", "Zhejiang University;Zhejiang University of Technology;Hangzhou Normal University;China Academy of Art;Zhejiang Gongshang University"],
+                ["Гуанчжоу", "Guangzhou, China", "Sun Yat-sen University;South China University of Technology;Jinan University;South China Normal University;Guangzhou University"]
+            ]],
+            ['AU', [
+                ["Мельбурн", "Melbourne, Australia", "University of Melbourne;Monash University;RMIT University;Deakin University;Swinburne University of Technology"],
+                ["Сидней", "Sydney, Australia", "University of Sydney;University of New South Wales (UNSW);University of Technology Sydney (UTS);Macquarie University;Western Sydney University"],
+                ["Брисбен", "Brisbane, Australia", "University of Queensland;Queensland University of Technology (QUT);Griffith University;James Cook University (Brisbane Campus);Torrens University Australia (Brisbane)"],
+                ["Канберра", "Canberra, Australia", "Australian National University (ANU);University of Canberra;Australian Catholic University (Canberra Campus);UNSW Canberra (ADFA);Charles Sturt University (Canberra)"],
+                ["Перт", "Perth, Australia", "University of Western Australia;Curtin University;Murdoch University;Edith Cowan University;University of Notre Dame Australia"]
+            ]],
+            ['DE', [
+                ["Мюнхен", "Munich, Germany", "Technical University of Munich (TUM);Ludwig Maximilian University of Munich (LMU);Munich University of Applied Sciences (HM);University of the Federal Armed Forces Munich;Munich Business School"],
+                ["Берлин", "Berlin, Germany", "Humboldt University of Berlin;Free University of Berlin;Technical University of Berlin;HTW Berlin;Charité – Universitätsmedizin Berlin"],
+                ["Гейдельберг", "Heidelberg, Germany", "Heidelberg University;SRH University Heidelberg;Heidelberg University of Education;College of Jewish Studies Heidelberg;Schiller International University (Heidelberg)"],
+                ["Ахен", "Aachen, Germany", "RWTH Aachen University;FH Aachen University of Applied Sciences;Catholic University of Applied Sciences North Rhine-Westphalia;KatHO Aachen;Music Academy Aachen"],
+                ["Франкфурт-на-Майне", "Frankfurt am Main, Germany", "Goethe University Frankfurt;Frankfurt School of Finance & Management;Frankfurt University of Applied Sciences;Städelschule;Frankfurt University of Music and Performing Arts"]
+            ]],
+            ['CA', [
+                ["Торонто", "Toronto, Canada", "University of Toronto;York University;Toronto Metropolitan University (Ryerson);OCAD University;George Brown College"],
+                ["Ванкувер", "Vancouver, Canada", "University of British Columbia (UBC);Simon Fraser University;Capilano University;Emily Carr University of Art and Design;Vancouver Island University"],
+                ["Монреаль", "Montreal, Canada", "McGill University;Université de Montréal;Concordia University;UQAM (Université du Québec à Montréal);HEC Montréal"],
+                ["Оттава", "Ottawa, Canada", "University of Ottawa;Carleton University;Saint Paul University;Dominican University College;Algonquin College"],
+                ["Ватерлоо", "Waterloo, Ontario, Canada", "University of Waterloo;Wilfrid Laurier University;St. Jerome's University;Renison University College;Conrad Grebel University College"]
+            ]],
+            ['FR', [
+                ["Париж", "Paris, France", "Sorbonne University;Université PSL;Université Paris Cité;Sciences Po Paris;Panthéon-Assas University"],
+                ["Лион", "Lyon, France", "Université Claude Bernard Lyon 1;Université Lumière Lyon 2;Université Jean Moulin Lyon 3;École Normale Supérieure de Lyon (ENS Lyon);EM Lyon Business School"],
+                ["Сакле (Париж-Сакле)", "Paris-Saclay, France", "Université Paris-Saclay;École Polytechnique;CentraleSupélec;ENS Paris-Saclay;Télécom Paris"],
+                ["Страсбург", "Strasbourg, France", "University of Strasbourg;EM Strasbourg Business School;INSA Strasbourg;HEAR (Haute école des arts du Rhin);ECAM Strasbourg-Europe"],
+                ["Марсель", "Marseille, France", "Aix-Marseille University;École Centrale de Marseille;KEDGE Business School;École Nationale Supérieure d'Architecture de Marseille;Polytech Marseille"]
+            ]],
+            ['JP', [
+                ["Токио", "Tokyo, Japan", "University of Tokyo;Tokyo Institute of Technology;Waseda University;Keio University;Hitotsubashi University"],
+                ["Киото", "Kyoto, Japan", "Kyoto University;Doshisha University;Ritsumeikan University;Kyoto Institute of Technology;Kyoto Prefectural University"],
+                ["Осака", "Osaka, Japan", "Osaka University;Kansai University;Osaka Metropolitan University;Kindai University;Osaka Institute of Technology"],
+                ["Сендай", "Sendai, Japan", "Tohoku University;Miyagi University;Tohoku Gakuin University;Tohoku Institute of Technology;Miyagi University of Education"],
+                ["Нагоя", "Nagoya, Japan", "Nagoya University;Nagoya Institute of Technology;Nagoya City University;Nanzan University;Meijo University"]
+            ]],
+            ['NL', [
+                ["Амстердам", "Amsterdam, Netherlands", "University of Amsterdam (UvA);Vrije Universiteit Amsterdam (VU);Amsterdam University of Applied Sciences (AUAS);Gerrit Rietveld Academie;Conservatorium van Amsterdam"],
+                ["Делфт", "Delft, Netherlands", "Delft University of Technology (TU Delft);UNESCO-IHE Institute for Water Education;Inholland University of Applied Sciences (Delft);The Hague University of Applied Sciences (Delft Campus);ROC Mondriaan Delft"],
+                ["Утрехт", "Utrecht, Netherlands", "Utrecht University;HU University of Applied Sciences Utrecht;HKU University of the Arts Utrecht;University of Humanistic Studies;Tio Business School Utrecht"],
+                ["Лейден", "Leiden, Netherlands", "Leiden University;Webster University Leiden;Leiden University Medical Center (LUMC);Hogeschool Leiden;Trippenhuis Institute"],
+                ["Роттердам", "Rotterdam, Netherlands", "Erasmus University Rotterdam;Rotterdam University of Applied Sciences;Willem de Kooning Academy;Codarts University for the Arts;Rotterdam School of Management (RSM)"]
+            ]],
+            ['KR', [
+                ["Сеул", "Seoul, South Korea", "Seoul National University;Yonsei University;Korea University;Sungkyunkwan University;Hanyang University"],
+                ["Тэджон", "Daejeon, South Korea", "KAIST (Korea Advanced Institute of Science and Technology);Chungnam National University;Hanbat National University;UST (University of Science and Technology);Hannam University"],
+                ["Пхохан", "Pohang, South Korea", "POSTECH (Pohang University of Science and Technology);Handong Global University;Pohang College;Sunlin College;Marine Corps Educational Regiment (Specialized Academy)"],
+                ["Сувон", "Suwon, South Korea", "Sungkyunkwan University (Natural Sciences Campus);Ajou University;Kyonggi University;Suwon University;Kyung Hee University (Global Campus)"],
+                ["Инчхон", "Incheon, South Korea", "Inha University;University of Incheon;SUNY Korea (Incheon Global Campus);George Mason University Korea;Ghent University Global Campus"]
+            ]],
+            ['SE', [
+                ["Стокгольм", "Stockholm, Sweden", "KTH Royal Institute of Technology;Stockholm University;Karolinska Institute;Stockholm School of Economics;Konstfack"],
+                ["Лунд", "Lund, Sweden", "Lund University;World Maritime University;Lund University School of Aviation;Lund School of Economics and Management;Malmö Academy of Music (Lund University)"],
+                ["Уппсала", "Uppsala, Sweden", "Uppsala University;Swedish University of Agricultural Sciences (SLU);Johannelund Theological Seminary;Newman Institute;Uppsala Folk High School"],
+                ["Гётеборг", "Gothenburg, Sweden", "University of Gothenburg;Chalmers University of Technology;IT University of Gothenburg;Valand Academy;HDK Academy of Design and Crafts"],
+                ["Линчёпинг", "Linköping, Sweden", "Linköping University;Linköping Institute of Technology;Linköping University Faculty of Arts and Sciences;Linköping University Faculty of Medicine and Health Sciences;Linköping Educational Center"]
+            ]],
+            ['HK', [
+                ["Гонконг", "Hong Kong", "University of Hong Kong (HKU);Hong Kong University of Science and Technology (HKUST);Chinese University of Hong Kong (CUHK);City University of Hong Kong (CityU);Hong Kong Polytechnic University (PolyU)"]
+            ]],
+            ['BE', [
+                ["Лёвен", "Leuven, Belgium", "KU Leuven;UC LLN (UC Leuven-Limburg);LUCA School of Arts (Campus Lemmens);Evangelical Theological Faculty Leuven;Vesalius College Leuven"],
+                ["Брюссель", "Brussels, Belgium", "Université Libre de Bruxelles (ULB);Vrije Universiteit Brussel (VUB);UCLouvain Brussels;Saint-Louis University Brussels;Brussels School of Governance"],
+                ["Гент", "Ghent, Belgium", "Ghent University;HOGENT (Ghent University of Applied Sciences and Arts);Artevelde University of Applied Sciences;LUCA School of Arts (Ghent);KASK & Conservatorium"],
+                ["Антверпен", "Antwerp, Belgium", "University of Antwerp;AP University of Applied Sciences and Arts;KdG University of Applied Sciences and Arts;Royal Academy of Fine Arts Antwerp;Antwerp Management School"],
+                ["Льеж", "Liège, Belgium", "University of Liège;HELMo (Haute École Libre Mosane);HEPL (Haute École de la Province de Liège);Royal Academy of Fine Arts of Liège;Royal Conservatory of Liège"]
+            ]],
+            ['DKNO', [
+                ["Копенгаген (Дания)", "Copenhagen, Denmark", "University of Copenhagen;Technical University of Denmark (DTU);Copenhagen Business School (CBS);IT University of Copenhagen;Royal Danish Academy of Fine Arts"],
+                ["Осло (Норвегия)", "Oslo, Norway", "University of Oslo;Norwegian University of Life Sciences (NMBU);BI Norwegian Business School;Oslo Metropolitan University (OsloMet);Kristiania University College"],
+                ["Орхус (Дания)", "Aarhus, Denmark", "Aarhus University;VIA University College;Royal Academy of Music, Aarhus;Aarhus School of Architecture;Danish School of Media and Journalism"],
+                ["Берген (Норвегия)", "Bergen, Norway", "University of Bergen;Western Norway University of Applied Sciences;NHH Norwegian School of Economics;Bergen National Academy of the Arts;NLA University College"],
+                ["Тронхейм (Норвегия)", "Trondheim, Norway", "Norwegian University of Science and Technology (NTNU);Queen Maud University College;BI Norwegian Business School (Trondheim);Trondheim Academy of Fine Art;Trøndelag Music Conservatory"]
+            ]],
+            ['IT', [
+                ["Милан", "Milan, Italy", "Politecnico di Milano;University of Milan (UniMi);Bocconi University;Vita-Salute San Raffaele University;Università Cattolica del Sacro Cuore"],
+                ["Болонья", "Bologna, Italy", "University of Bologna;Johns Hopkins University (SAIS Bologna);Academy of Fine Arts of Bologna;Conservatory of Music Giovan Battista Martini;Alma Mater Studiorum – Cesena/Forlì Campuses"],
+                ["Рим", "Rome, Italy", "Sapienza University of Rome;University of Rome Tor Vergata;Roma Tre University;LUISS Guido Carli;Pontifical Gregorian University"],
+                ["Турин", "Turin, Italy", "Politecnico di Torino;University of Turin;IAAD (Institute of Applied Art and Design);IED Turin (European Institute of Design);Giuseppe Verdi Conservatory"],
+                ["Падуя", "Padua, Italy", "University of Padua;Galilean Academy of Higher Education;Conservatory of Music Cesare Pollini;CIELS University Institute;Scuola Superiore Scuola Galileiana"]
+            ]],
+            ['ES', [
+                ["Барселона", "Barcelona, Spain", "University of Barcelona (UB);Universitat Autònoma de Barcelona (UAB);Universitat Pompeu Fabra (UPF);Universitat Politècnica de Catalunya (UPC);ESADE Business School"],
+                ["Мадрид", "Madrid, Spain", "Universidad Complutense de Madrid;Universidad Autónoma de Madrid;Universidad Politécnica de Madrid;Universidad Carlos III de Madrid;IE University"],
+                ["Валенсия", "Valencia, Spain", "University of Valencia;Universitat Politècnica de València;Universidad CEU Cardenal Herrera;European University of Valencia;Berklee College of Music (Valencia Campus)"],
+                ["Памплона", "Pamplona, Spain", "University of Navarra;Public University of Navarra (UPNA);Centro Superior de Diseño Creanavarra;Conservatorio Superior de Música de Navarra;UNED Pamplona"],
+                ["Саламанка", "Salamanca, Spain", "University of Salamanca;Pontifical University of Salamanca;Escuela Técnica Superior de Ingeniería Industrial de Salamanca;Conservatorio Superior de Música de Castilla y León;Centro de Investigación del Cáncer (CIC)"]
+            ]],
+            ['AT', [
+                ["Вена", "Vienna, Austria", "University of Vienna;Vienna University of Technology (TU Wien);Vienna University of Economics and Business (WU);Medical University of Vienna;Academy of Fine Arts Vienna"],
+                ["Инсбрук", "Innsbruck, Austria", "University of Innsbruck;Medical University of Innsbruck;Management Center Innsbruck (MCI);FH Health University Applied Sciences Tyrol;University Mozarteum (Innsbruck Campus)"],
+                ["Грац", "Graz, Austria", "University of Graz;Graz University of Technology (TU Graz);Medical University of Graz;University of Music and Performing Arts Graz;FH Joanneum University of Applied Sciences"],
+                ["Линц", "Linz, Austria", "Johannes Kepler University Linz (JKU);University of Art and Design Linz;Anton Bruckner Private University;Catholic Private University Linz;FH Upper Austria (Linz Campus)"],
+                ["Зальцбург", "Salzburg, Austria", "Paris Lodron University of Salzburg (PLUS);Mozarteum University Salzburg;Paracelsus Medical Private University;Salzburg University of Applied Sciences (FH Salzburg);Alma Mater Europaea"]
+            ]],
+            ['IE', [
+                ["Дублин", "Dublin, Ireland", "Trinity College Dublin;University College Dublin (UCD);Dublin City University (DCU);Technological University Dublin (TU Dublin);National College of Ireland (NCI)"],
+                ["Корк", "Cork, Ireland", "University College Cork (UCC);Munster Technological University (MTU);National Maritime College of Ireland;Cork School of Music;Crawford College of Art and Design"],
+                ["Голуэй", "Galway, Ireland", "University of Galway;Atlantic Technological University (ATU Galway);Irish World Academy of Music and Dance (Galway Affiliate);Shannon College of Hotel Management;Marine Institute Ireland"],
+                ["Лимерик", "Limerick, Ireland", "University of Limerick;Technological University of the Shannon (TUS Limerick);Mary Immaculate College;Griffith College Limerick;Limerick School of Art and Design"],
+                ["Мейнут", "Maynooth, Ireland", "Maynooth University;St Patrick's Pontifical University, Maynooth;International Option College Maynooth;Maynooth University Innovation Value Institute;Froebel Department of Primary and Early Childhood Education"]
+            ]]
+        ];
+
+        (function registerDocUniversities() {
+            // Вузы из списка, которые уже есть в базе с готовыми координатами
+            const EXISTING = {
+                'Seoul National University': 'SNU', 'Yonsei University': 'YU', 'Korea University': 'KU', 'Sungkyunkwan University': 'SKKU',
+                'Hanyang University': 'HYU', 'KAIST (Korea Advanced Institute of Science and Technology)': 'KAIST',
+                'POSTECH (Pohang University of Science and Technology)': 'POSTECH',
+                'Peking University': 'PKU', 'Tsinghua University': 'THU', 'Fudan University': 'FDU', 'Shanghai Jiao Tong University': 'SJTU', 'Zhejiang University': 'ZJU',
+                'University of Tokyo': 'UTOKYO', 'Tokyo Institute of Technology': 'TITECH', 'Waseda University': 'WASEDA', 'Keio University': 'KEIO',
+                'Kyoto University': 'KYOTO', 'Osaka University': 'OSAKA', 'Tohoku University': 'TOHOKU', 'Nagoya University': 'NAGOYA'
+            };
+            // Города старых записей, которых нет в списке
+            const OLD_CITIES = {
+                EWHA: ['Сеул', 'Seoul, South Korea'], CAU: ['Сеул', 'Seoul, South Korea'], PNU: ['Пусан', 'Busan, South Korea'],
+                WHU: ['Ухань', 'Wuhan, China'], HOKKAIDO: ['Саппоро', 'Sapporo, Japan'], KYUSHU: ['Фукуока', 'Fukuoka, Japan']
+            };
+            Object.entries(OLD_CITIES).forEach(([k, [city, cityEn]]) => {
+                if (universityCoords[k]) { universityCoords[k].city = city; universityCoords[k].cityEn = cityEn; }
+            });
+
+            const slug = str => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+
+            DOC_DB.forEach(([cc, cities]) => {
+                cities.forEach(([cityRu, cityEn, list]) => {
+                    list.split(';').forEach(name => {
+                        const existing = EXISTING[name];
+                        if (existing && universityCoords[existing]) {
+                            universityCoords[existing].city = cityRu;
+                            universityCoords[existing].cityEn = cityEn;
+                            return;
+                        }
+                        let key = cc + '_' + slug(name), i = 2;
+                        while (universityCoords[key]) key = cc + '_' + slug(name) + '_' + (i++);
+                        universityCoords[key] = { country: cc, city: cityRu, cityEn, name, label: name };
+                    });
+                });
+            });
+        })();
+
+        let activeUniversity = (currentUser && universityCoords[currentUser.university]) ? currentUser.university : 'SNU';
+
+        function getActiveCountry() {
+            return universityCoords[activeUniversity] ? universityCoords[activeUniversity].country : 'KR';
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            syncSelects();
+            initMap();
+            checkUserSession();
+            loadChecklistForCountry();
+            renderChecklist();
+            renderFinance();
+            renderEmergency();
+        });
+
+        function checkUserSession() {
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.name || 'Гость';
+                document.getElementById('userUni').textContent = universityCoords[activeUniversity] ? universityCoords[activeUniversity].name : activeUniversity;
+                if (currentUser.avatar) document.getElementById('userAvatar').src = currentUser.avatar;
+                document.getElementById('registerModal').classList.add('hidden');
+            } else {
+                document.getElementById('registerModal').classList.remove('hidden');
+            }
+        }
+
+        // ---------- Выбор страны и университета ----------
+        function populateCountries(selectId, selected) {
+            const sel = document.getElementById(selectId);
+            sel.innerHTML = '';
+            Object.entries(COUNTRIES).forEach(([code, c]) => {
+                const o = document.createElement('option');
+                o.value = code;
+                o.textContent = c.label;
+                sel.appendChild(o);
+            });
+            sel.value = selected;
+        }
+
+        function populateUniversities(selectId, country, selected) {
+            const sel = document.getElementById(selectId);
+            sel.innerHTML = '';
+            const groups = new Map(); // город -> [[key, uni], ...]
+            Object.entries(universityCoords)
+                .filter(([, u]) => u.country === country)
+                .forEach(([key, u]) => {
+                    const city = u.city || '';
+                    if (!groups.has(city)) groups.set(city, []);
+                    groups.get(city).push([key, u]);
+                });
+            groups.forEach((items, city) => {
+                const parent = city ? document.createElement('optgroup') : sel;
+                if (city) parent.label = city;
+                items.forEach(([key, u]) => {
+                    const o = document.createElement('option');
+                    o.value = key;
+                    o.textContent = u.label || u.name;
+                    parent.appendChild(o);
+                });
+                if (city) sel.appendChild(parent);
+            });
+            if (selected && universityCoords[selected] && universityCoords[selected].country === country) sel.value = selected;
+        }
+
+        function syncSelects() {
+            const country = getActiveCountry();
+            ['reg', 'map'].forEach(prefix => {
+                populateCountries(prefix + 'Country', country);
+                populateUniversities(prefix + 'University', country, activeUniversity);
+            });
+        }
+
+        function onRegCountryChange() {
+            populateUniversities('regUniversity', document.getElementById('regCountry').value);
+        }
+
+        function onMapCountryChange() {
+            const country = document.getElementById('mapCountry').value;
+            populateUniversities('mapUniversity', country);
+            applyUniversity(document.getElementById('mapUniversity').value);
+        }
+
+        function onMapUniversityChange() {
+            applyUniversity(document.getElementById('mapUniversity').value);
+        }
+
+        // Меняет активный университет (и сохраняет в профиль)
+        function applyUniversity(key) {
+            if (!universityCoords[key]) return;
+            const prevCountry = getActiveCountry();
+            activeUniversity = key;
+
+            if (currentUser) {
+                currentUser.university = key;
+                currentUser.country = universityCoords[key].country;
+                localStorage.setItem('gks_user', JSON.stringify(currentUser));
+            }
+            syncSelects();
+            checkUserSession();
+            onCountryContextChange(prevCountry);
+        }
+
+        // Обновляет всё, что зависит от страны: экстренные номера, чек-лист, язык переводчика, карту
+        function onCountryContextChange(prevCountry) {
+            renderEmergency();
+            if (prevCountry !== getActiveCountry()) {
+                loadChecklistForCountry();
+                renderChecklist();
+                const target = document.getElementById('targetLanguage');
+                target.value = COUNTRIES[getActiveCountry()].lang;
+                if (document.getElementById('translatorInput').value.trim()) performTranslation();
+            }
+            updateMapForUniversity();
+        }
+
+        function renderEmergency() {
+            const grid = document.getElementById('emergencyGrid');
+            if (!grid) return;
+            document.getElementById('emergencyTitle').textContent = 'Экстренные службы — ' + COUNTRIES[getActiveCountry()].label.replace(/^\S+\s/, '');
+            grid.innerHTML = (EMERGENCY[getActiveCountry()] || []).map(i => `
+                <a href="tel:${i.tel}" class="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                    <div class="p-3 ${i.bg} ${i.fg} rounded-lg"><i data-lucide="${i.icon}" class="w-5 h-5"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-400">${i.label}</p>
+                        <p class="text-base font-bold text-white">${i.number}</p>
+                    </div>
+                </a>`).join('');
+            lucide.createIcons();
+        }
+
+        function checklistKey(country) {
+            return country === 'KR' ? 'gks_checklist' : 'gks_checklist_' + country;
+        }
+
+        function loadChecklistForCountry() {
+            const country = getActiveCountry();
+            let saved = null;
+            try { saved = JSON.parse(localStorage.getItem(checklistKey(country))); } catch (e) {}
+            checklistTasks = Array.isArray(saved) ? saved : JSON.parse(JSON.stringify(CHECKLIST_DEFAULTS[country]));
+        }
+
+        function handleRegistration(e) {
+            e.preventDefault();
+            const prevCountry = getActiveCountry();
+            const name = document.getElementById('regName').value;
+            const country = document.getElementById('regCountry').value;
+            const university = document.getElementById('regUniversity').value;
+            let avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80";
+
+            const selectedAvatar = document.querySelector('input[name="avatar"]:checked');
+            if (selectedAvatar) avatar = selectedAvatar.value;
+            if (currentUser && currentUser.avatar && currentUser.avatar.startsWith('data:image')) avatar = currentUser.avatar;
+
+            currentUser = { name, country, university, avatar };
+            activeUniversity = university;
+            localStorage.setItem('gks_user', JSON.stringify(currentUser));
+
+            syncSelects();
+            checkUserSession();
+            onCountryContextChange(prevCountry);
+        }
+
+        function handleCustomAvatar(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if(!currentUser) currentUser = {};
+                    currentUser.avatar = e.target.result;
+                    document.getElementById('userAvatar').src = currentUser.avatar;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklistItems');
+            container.innerHTML = '';
+
+            let completedCount = 0;
+
+            checklistTasks.forEach((task, index) => {
+                if (task.done) completedCount++;
+
+                const item = document.createElement('div');
+                item.className = "bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-3";
+                item.innerHTML = `
+                    <div class="flex items-start gap-3 flex-1">
+                        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask(${index})" class="mt-1 w-4 h-4 rounded text-blue-600 border-slate-700 bg-slate-900 cursor-pointer">
+                        <div>
+                            <span class="text-sm font-semibold ${task.done ? 'line-through text-slate-500' : 'text-slate-200'} block">${task.text}</span>
+                            ${task.desc ? `<span class="text-xs text-slate-400 block mt-0.5">${task.desc}</span>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="deleteTask(${index})" class="text-slate-500 hover:text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                `;
+                container.appendChild(item);
+            });
+
+            const percent = checklistTasks.length ? Math.round((completedCount / checklistTasks.length) * 100) : 0;
+            document.getElementById('checklistPercentage').textContent = `${percent}%`;
+            document.getElementById('checklistProgressBar').style.width = `${percent}%`;
+
+            localStorage.setItem(checklistKey(getActiveCountry()), JSON.stringify(checklistTasks));
+            lucide.createIcons();
+        }
+
+        function toggleTask(index) {
+            checklistTasks[index].done = !checklistTasks[index].done;
+            renderChecklist();
+        }
+
+        function addCustomTask(e) {
+            e.preventDefault();
+            const input = document.getElementById('newTaskInput');
+            const text = input.value.trim();
+            if (text) {
+                checklistTasks.push({ id: Date.now(), text, desc: 'Пользовательская задача', done: false });
+                input.value = '';
+                renderChecklist();
+            }
+        }
+
+        function deleteTask(index) {
+            checklistTasks.splice(index, 1);
+            renderChecklist();
+        }
+
+        function addTransaction(e) {
+            e.preventDefault();
+            const desc = document.getElementById('financeDesc').value;
+            const amount = parseFloat(document.getElementById('financeAmount').value);
+            const type = document.getElementById('financeType').value;
+
+            financeData.push({ id: Date.now(), desc, amount, type });
+            localStorage.setItem('gks_finance', JSON.stringify(financeData));
+
+            document.getElementById('financeDesc').value = '';
+            document.getElementById('financeAmount').value = '';
+
+            renderFinance();
+        }
+
+        function deleteTransaction(id) {
+            financeData = financeData.filter(item => item.id !== id);
+            localStorage.setItem('gks_finance', JSON.stringify(financeData));
+            renderFinance();
+        }
+
+        function renderFinance() {
+            const list = document.getElementById('financeList');
+            if(!list) return;
+            list.innerHTML = '';
+
+            let income = 0;
+            let expense = 0;
+
+            financeData.forEach(item => {
+                if (item.type === 'income') income += item.amount;
+                else expense += item.amount;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-white">${item.desc}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${item.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${item.type.toUpperCase()}</span></td>
+                    <td class="p-3 font-bold ${item.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">₩${item.amount.toLocaleString()}</td>
+                    <td class="p-3 text-right"><button onclick="deleteTransaction(${item.id})" class="text-slate-500 hover:text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                `;
+                list.appendChild(tr);
+            });
+
+            document.getElementById('totalIncome').textContent = `₩${income.toLocaleString()}`;
+            document.getElementById('totalExpense').textContent = `₩${expense.toLocaleString()}`;
+            document.getElementById('totalBalance').textContent = `₩${(income - expense).toLocaleString()}`;
+            lucide.createIcons();
+        }
+
+        function selectRole(role) {
+            activeRole = role;
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500/50');
+                btn.classList.add('bg-slate-950', 'text-slate-300', 'border-slate-800');
+            });
+            const targetBtn = document.getElementById(`role-${role}`);
+            if(targetBtn) {
+                targetBtn.classList.add('bg-blue-600', 'text-white', 'border-blue-500/50');
+                targetBtn.classList.remove('bg-slate-950', 'text-slate-300', 'border-slate-800');
+            }
+            performTranslation();
+        }
+
+        // ================== РЕАЛЬНЫЙ ПЕРЕВОДЧИК ==================
+        // Перевод: Google Translate (бесплатный endpoint, без ключа), запасной вариант — MyMemory.
+        // Транскрипция корейского: официальная романизация (Revised Romanization), считается локально.
+
+        const MYMEMORY_CODES = { zh: 'zh-CN' }; // остальные коды совпадают с ISO
+        const translationCache = new Map();
+        let translateTimer = null;
+        let translateRequestId = 0;
+
+        const HANGUL_ONSET = ['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'];
+        const HANGUL_VOWEL = ['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+        const HANGUL_CODA  = ['','k','k','k','n','n','n','t','l','k','m','l','l','l','p','l','m','p','p','t','t','ng','t','t','k','t','p','t'];
+        // Перенос конечной согласной на следующий слог с «ㅇ» (например, 한국어 -> hangugeo)
+        const HANGUL_LIAISON = { 1:'g', 2:'kk', 4:'n', 7:'d', 8:'r', 16:'m', 17:'b', 19:'s', 20:'ss', 22:'j', 23:'ch', 24:'k', 25:'t', 26:'p' };
+
+        function romanizeKorean(text) {
+            const chars = Array.from(text);
+            const syl = chars.map(ch => {
+                const code = ch.charCodeAt(0) - 0xAC00;
+                if (code < 0 || code > 11171) return { raw: ch };
+                return { onset: Math.floor(code / 588), vowel: Math.floor((code % 588) / 28), coda: code % 28 };
+            });
+
+            for (let i = 0; i < syl.length - 1; i++) {
+                const cur = syl[i], next = syl[i + 1];
+                if (cur.raw !== undefined || next.raw !== undefined) continue;
+                if (next.onset === 11 && HANGUL_LIAISON[cur.coda] !== undefined) {
+                    next.onsetOverride = HANGUL_LIAISON[cur.coda];
+                    cur.codaOverride = '';
+                }
+            }
+
+            return syl.map(s => {
+                if (s.raw !== undefined) return s.raw;
+                const onset = s.onsetOverride !== undefined ? s.onsetOverride : HANGUL_ONSET[s.onset];
+                const coda = s.codaOverride !== undefined ? s.codaOverride : HANGUL_CODA[s.coda];
+                return onset + HANGUL_VOWEL[s.vowel] + coda;
+            }).join('');
+        }
+
+        function decodeHtmlEntities(str) {
+            const doc = new DOMParser().parseFromString(str, 'text/html');
+            return doc.documentElement.textContent;
+        }
+
+        function scheduleTranslation() {
+            clearTimeout(translateTimer);
+            translateTimer = setTimeout(performTranslation, 700);
+        }
+
+        // Делим длинный текст на куски по предложениям (≤ 400 символов)
+        function splitIntoChunks(text, max = 400) {
+            const parts = text.match(/[^.!?。！？\n]+[.!?。！？]*\s*/g) || [text];
+            const chunks = [];
+            let cur = '';
+            for (const part of parts) {
+                if ((cur + part).length > max && cur) { chunks.push(cur); cur = ''; }
+                if (part.length > max) {
+                    for (let i = 0; i < part.length; i += max) chunks.push(part.slice(i, i + max));
+                } else cur += part;
+            }
+            if (cur.trim()) chunks.push(cur);
+            return chunks;
+        }
+
+        const GOOGLE_CODES = { zh: 'zh-CN' };
+        const LATIN_LANGS = ['en', 'de', 'fr', 'es', 'pt', 'tr', 'it'];
+
+        async function fetchWithTimeout(url, ms = 10000) {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), ms);
+            try { return await fetch(url, { signal: ctrl.signal }); }
+            finally { clearTimeout(timer); }
+        }
+
+        // ---------- ПЕРЕВОД ----------
+        // Запрос к Google: сначала через свой сервер Vercel (/api/translate), потом напрямую из браузера
+        async function googleRaw(sl, tl, text, withRm) {
+            const qs = `sl=${sl}&tl=${tl}${withRm ? '&rm=1' : ''}&q=${encodeURIComponent(text)}`;
+            if (location.protocol.startsWith('http')) {
+                try {
+                    const r = await fetchWithTimeout(`/api/translate?${qs}`);
+                    if (r.ok) {
+                        const d = await r.json();
+                        if (Array.isArray(d)) return d;
+                    }
+                } catch (e) { /* прокси недоступен — пробуем напрямую */ }
+            }
+            const direct = 'https://translate.googleapis.com/translate_a/single?client=gtx'
+                + `&sl=${sl}&tl=${tl}&dt=t${withRm ? '&dt=rm' : ''}&q=${encodeURIComponent(text)}`;
+            const response = await fetchWithTimeout(direct);
+            if (!response.ok) throw new Error(`Google HTTP ${response.status}`);
+            return await response.json();
+        }
+
+        // 1) Google Translate
+        async function translateGoogle(text, src, tgt) {
+            const sl = src === 'auto' ? 'auto' : (GOOGLE_CODES[src] || src);
+            const tl = GOOGLE_CODES[tgt] || tgt;
+            const data = await googleRaw(sl, tl, text, false);
+            let translated = '';
+            (data[0] || []).forEach(seg => { if (seg && seg[0]) translated += seg[0]; });
+            if (!translated) throw new Error('Empty translation');
+            return translated;
+        }
+
+        // 2) Запасной вариант: MyMemory
+        async function translateMyMemory(text, src, tgt) {
+            const from = src === 'auto' ? 'Autodetect' : (MYMEMORY_CODES[src] || src);
+            const pair = `${from}|${MYMEMORY_CODES[tgt] || tgt}`;
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(pair)}`;
+            const response = await fetchWithTimeout(url);
+            if (!response.ok) throw new Error(`MyMemory HTTP ${response.status}`);
+            const data = await response.json();
+            if (data.responseStatus && Number(data.responseStatus) !== 200) {
+                throw new Error(data.responseDetails || 'Translation error');
+            }
+            const translated = decodeHtmlEntities(data.responseData.translatedText || '');
+            if (!translated) throw new Error('Empty translation');
+            return translated;
+        }
+
+        // 3) Lingva (открытый прокси Google Translate, дружит с браузером на компьютере)
+        const LINGVA_HOSTS = ['https://lingva.ml', 'https://lingva.thedaviddelta.com', 'https://translate.plausibility.cloud'];
+
+        async function translateLingva(text, src, tgt) {
+            let lastErr;
+            for (const host of LINGVA_HOSTS) {
+                try {
+                    const sl = src === 'auto' ? 'auto' : (src === 'zh' ? 'zh' : src);
+                    const url = `${host}/api/v1/${sl}/${tgt}/${encodeURIComponent(text)}`;
+                    const response = await fetchWithTimeout(url, 8000);
+                    if (!response.ok) throw new Error(`Lingva HTTP ${response.status}`);
+                    const data = await response.json();
+                    if (!data.translation) throw new Error('Empty translation');
+                    return data.translation;
+                } catch (e) { lastErr = e; }
+            }
+            throw lastErr || new Error('Lingva unavailable');
+        }
+
+        // Проверка результата: в корейском/японском/китайском/русском и т.д. должны быть буквы нужного алфавита
+        const SCRIPT_CHECK = {
+            ko: /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/,
+            ja: /[\u3040-\u30FF\u4E00-\u9FFF]/,
+            zh: /[\u4E00-\u9FFF]/,
+            ru: /[\u0400-\u04FF]/,
+            kk: /[\u0400-\u04FF]/
+        };
+
+        function validateTranslation(original, result, tgt) {
+            const hasLetters = /\p{L}/u.test(original);
+            if (!hasLetters) return; // цифры и знаки проверять не нужно
+            const check = SCRIPT_CHECK[tgt];
+            if (check && !check.test(result)) {
+                throw new Error('результат не на целевом языке');
+            }
+            if (result.trim().toLowerCase() === original.trim().toLowerCase()) {
+                const e = new Error('результат совпал с исходным текстом');
+                e.soft = true; // возможно, это нормально (имя, бренд) — вернём, только если другие сервисы тоже не помогли
+                e.value = result;
+                throw e;
+            }
+        }
+
+        async function translateChunk(text, src, tgt) {
+            const errors = [];
+            let soft = null;
+            const providers = [
+                ['Google', translateGoogle],
+                ['Google', translateGoogle],   // одна повторная попытка
+                ['Lingva', translateLingva],
+                ['MyMemory', translateMyMemory]
+            ];
+            for (const [name, fn] of providers) {
+                try {
+                    const result = await fn(text, src, tgt);
+                    validateTranslation(text, result, tgt);
+                    return result;
+                } catch (e) {
+                    console.warn(`${name} failed:`, e);
+                    if (e.soft && !soft) soft = e.value;
+                    errors.push(`${name}: ${e.name === 'AbortError' ? 'timeout' : e.message}`);
+                }
+            }
+            if (soft) return soft;
+            const err = new Error(errors.join(' | '));
+            err.details = errors;
+            throw err;
+        }
+
+        async function fetchTranslation(text, src, tgt) {
+            if (src !== 'auto' && src === tgt) return text;
+            const key = `${src}|${tgt}|${text}`;
+            if (translationCache.has(key)) return translationCache.get(key);
+
+            let result = '';
+            for (const chunk of splitIntoChunks(text)) {
+                result += await translateChunk(chunk, src, tgt);
+            }
+            translationCache.set(key, result);
+            return result;
+        }
+
+        // ---------- ТРАНСКРИПЦИЯ ----------
+        // Google возвращает латинскую транскрипцию исходного текста (sl = язык этого текста)
+        async function googleTransliterate(text, lang) {
+            const sl = GOOGLE_CODES[lang] || lang;
+            let out = '';
+            for (const chunk of splitIntoChunks(text)) {
+                const data = await googleRaw(sl, 'en', chunk, true);
+                (data[0] || []).forEach(seg => {
+                    if (seg && !seg[0] && seg[3]) out += seg[3] + ' ';
+                });
+            }
+            return out.trim();
+        }
+
+        const transcriptionCache = new Map();
+
+        async function getTranscription(text, lang) {
+            if (lang === 'ko') return romanizeKorean(text);
+
+            if (LATIN_LANGS.includes(lang)) {
+                return "Латиница — читается по правилам языка, отдельная транскрипция не нужна";
+            }
+
+            const key = `${lang}|${text}`;
+            if (transcriptionCache.has(key)) return transcriptionCache.get(key);
+
+            let result = '';
+
+            // Китайский: пиньинь с тонами (локально, без интернета)
+            if (lang === 'zh' && window.pinyinPro) {
+                try { result = window.pinyinPro.pinyin(text, { toneType: 'symbol' }); } catch (e) { console.warn(e); }
+            }
+
+            // Остальные (и китайский, если библиотека не загрузилась): Google
+            if (!result) {
+                try { result = await googleTransliterate(text, lang); } catch (e) { console.warn(e); }
+            }
+
+            // Японский: ромадзи для хираганы/катаканы, если Google не ответил
+            if (!result && lang === 'ja' && window.wanakana) {
+                try { result = window.wanakana.toRomaji(text); } catch (e) { console.warn(e); }
+            }
+
+            if (result) transcriptionCache.set(key, result);
+            return result || "[Транскрипцию получить не удалось]";
+        }
+
+        // ---------- ГЛАВНАЯ ФУНКЦИЯ ----------
+        async function performTranslation() {
+            clearTimeout(translateTimer);
+
+            const input = document.getElementById('translatorInput').value.trim();
+            const output = document.getElementById('translatorOutput');
+            const transcriptionOutput = document.getElementById('transcriptionOutput');
+            const targetLang = document.getElementById('targetLanguage').value;
+            const sourceLang = document.getElementById('sourceLanguage').value;
+
+            const requestId = ++translateRequestId;
+
+            if (!input) {
+                output.textContent = "[Введите текст для перевода...]";
+                transcriptionOutput.textContent = "[Транскрипция появится здесь...]";
+                return;
+            }
+
+            output.textContent = "⏳ Перевожу...";
+            transcriptionOutput.textContent = "...";
+
+            let translated;
+            try {
+                translated = await fetchTranslation(input, sourceLang, targetLang);
+            } catch (err) {
+                if (requestId !== translateRequestId) return;
+                console.error('Translation failed:', err);
+                output.textContent = "⚠️ Не удалось перевести. Попробуйте ещё раз. Детали: " + err.message;
+                transcriptionOutput.textContent = "—";
+                return;
+            }
+            if (requestId !== translateRequestId) return; // пришёл более новый запрос
+
+            output.textContent = translated;
+            transcriptionOutput.textContent = "...";
+
+            const transcription = await getTranscription(translated, targetLang);
+            if (requestId !== translateRequestId) return;
+            transcriptionOutput.textContent = transcription;
+        }
+        // ========================================================
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
+                btn.classList.add('text-slate-400');
+            });
+
+            document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-lg');
+            activeBtn.classList.remove('text-slate-400');
+
+            if (tabId === 'map') {
+                setTimeout(() => { if (mapInstance) mapInstance.invalidateSize(); }, 200);
+            }
+        }
+
+        function changeAppLanguage(lang) {
+            const dict = translations[lang] || translations['en'];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (dict[key]) {
+                    el.textContent = dict[key];
+                }
+            });
+        }
+
+        // ================== КАРТА ==================
+        const MAP_CATEGORIES = {
+            halal:    { emoji: '🥙', label: 'Халяль' },
+            vegan:    { emoji: '🥗', label: 'Веган' },
+            '24h':    { emoji: '🌙', label: 'Магазин 24/7' },
+            pharmacy: { emoji: '💊', label: 'Аптека' },
+            hospital: { emoji: '🏥', label: 'Больница' }
+        };
+        const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+        const MAP_RADIUS = 2000; // метров вокруг кампуса
+        const placesCache = new Map();
+        let currentMapFilter = 'all';
+        let mapLoadId = 0;
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function setMapStatus(text) {
+            const el = document.getElementById('mapStatus');
+            if (el) el.textContent = text;
+        }
+
+        function buildOverpassQuery(lat, lng) {
+            const a = `(around:${MAP_RADIUS},${lat},${lng})`;
+            return `[out:json][timeout:25];(`
+                + `nwr${a}["diet:halal"~"^(yes|only)$"];`
+                + `nwr${a}["diet:vegan"~"^(yes|only)$"];`
+                + `nwr${a}["shop"="convenience"]["opening_hours"="24/7"];`
+                + `nwr${a}["amenity"="pharmacy"];`
+                + `nwr${a}["amenity"="hospital"];`
+                + `);out center tags 300;`;
+        }
+
+        function classifyPlace(tags) {
+            const cats = [];
+            if (/^(yes|only)$/.test(tags['diet:halal'] || '')) cats.push('halal');
+            if (/^(yes|only)$/.test(tags['diet:vegan'] || '')) cats.push('vegan');
+            if (tags.shop === 'convenience' && tags.opening_hours === '24/7') cats.push('24h');
+            if (tags.amenity === 'pharmacy') cats.push('pharmacy');
+            if (tags.amenity === 'hospital') cats.push('hospital');
+            return cats;
+        }
+
+        async function fetchPlaces(uniKey) {
+            if (placesCache.has(uniKey)) return placesCache.get(uniKey);
+            const uni = universityCoords[uniKey];
+            const query = buildOverpassQuery(uni.lat, uni.lng);
+            let lastErr;
+            for (const base of OVERPASS_URLS) {
+                try {
+                    const response = await fetchWithTimeout(`${base}?data=${encodeURIComponent(query)}`, 25000);
+                    if (!response.ok) throw new Error(`Overpass HTTP ${response.status}`);
+                    const data = await response.json();
+                    const places = (data.elements || []).map(el => {
+                        const lat = el.lat !== undefined ? el.lat : (el.center && el.center.lat);
+                        const lng = el.lon !== undefined ? el.lon : (el.center && el.center.lon);
+                        if (lat === undefined || lng === undefined) return null;
+                        const tags = el.tags || {};
+                        const cats = classifyPlace(tags);
+                        if (!cats.length) return null;
+                        const name = tags['name:ru'] || tags['name:en'] || tags.name || MAP_CATEGORIES[cats[0]].label;
+                        return { lat, lng, cats, name };
+                    }).filter(Boolean);
+                    placesCache.set(uniKey, places);
+                    return places;
+                } catch (e) { lastErr = e; }
+            }
+            throw lastErr || new Error('Overpass unavailable');
+        }
+
+        function makePlaceIcon(emoji) {
+            return L.divIcon({
+                className: '',
+                html: `<div style="font-size:18px;line-height:1;background:#0f172a;border:1px solid #475569;border-radius:9999px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)">${emoji}</div>`,
+                iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14]
+            });
+        }
+
+        // ----- Поиск координат университета (OpenStreetMap Nominatim), результат кешируется -----
+        async function nominatimSearch(query) {
+            const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=en&q=${encodeURIComponent(query)}`;
+            const response = await fetchWithTimeout(url, 12000);
+            if (!response.ok) throw new Error(`Nominatim HTTP ${response.status}`);
+            const data = await response.json();
+            return data[0] ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
+        }
+
+        async function ensureCoords(key) {
+            const uni = universityCoords[key];
+            if (!uni || uni.lat !== undefined) return uni;
+
+            let cache = {};
+            try { cache = JSON.parse(localStorage.getItem('gks_geo') || '{}'); } catch (e) {}
+            if (cache[key]) { Object.assign(uni, cache[key]); return uni; }
+
+            const cityEn = uni.cityEn || '';
+            const countryEn = cityEn.split(',').pop().trim();
+            // Убираем пояснения в скобках, кроме указания кампуса
+            const paren = (uni.name.match(/\(([^)]*)\)/) || [])[1] || '';
+            let base = uni.name.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+            if (/campus/i.test(paren)) base = `${base} ${paren}`;
+
+            const attempts = [
+                { q: `${base}, ${cityEn}`, approx: false },
+                { q: `${base}, ${countryEn}`, approx: false },
+                { q: cityEn, approx: true }
+            ];
+            const tried = new Set();
+            let lastError = null;
+            for (const at of attempts) {
+                if (!at.q || tried.has(at.q)) continue;
+                tried.add(at.q);
+                try {
+                    const loc = await nominatimSearch(at.q);
+                    if (loc) {
+                        uni.lat = loc.lat; uni.lng = loc.lng; uni.approx = at.approx;
+                        cache[key] = { lat: loc.lat, lng: loc.lng, approx: at.approx };
+                        try { localStorage.setItem('gks_geo', JSON.stringify(cache)); } catch (e) {}
+                        return uni;
+                    }
+                } catch (e) { lastError = e; }
+                await new Promise(r => setTimeout(r, 1100)); // правила Nominatim: не чаще 1 запроса в секунду
+            }
+            if (lastError) throw lastError;
+            return uni;
+        }
+
+        function initMap() {
+            const start = universityCoords[activeUniversity] || universityCoords['SNU'];
+            const hasCoords = start.lat !== undefined;
+            mapInstance = L.map('mapContainer').setView(hasCoords ? [start.lat, start.lng] : [20, 0], hasCoords ? 15 : 2);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(mapInstance);
+
+            updateMapForUniversity();
+        }
+
+        function updateMapLinks(uni, country) {
+            const queries = [['🥙 Халяль', 'halal restaurant'], ['🥗 Веган', 'vegan restaurant'], ['🌙 24/7', '24 hour convenience store'], ['💊 Аптека', 'pharmacy']];
+            const link = q => country === 'CN'
+                ? `https://www.bing.com/maps?q=${encodeURIComponent(q)}&cp=${uni.lat}~${uni.lng}&lvl=15`
+                : `https://www.google.com/maps/search/${encodeURIComponent(q)}/@${uni.lat},${uni.lng},15z`;
+            const service = country === 'CN' ? 'Bing Maps' : 'Google Maps';
+            const html = queries.map(([label, q]) => `<a href="${link(q)}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">${label}</a>`).join(' · ');
+            document.getElementById('mapLinks').innerHTML = `Мало точек? В OpenStreetMap не все места размечены. Поиск в ${service}: ${html}`;
+        }
+
+        async function updateMapForUniversity() {
+            if (!mapInstance) return;
+            const key = activeUniversity;
+            const uni = universityCoords[key] || universityCoords['SNU'];
+            const loadId = ++mapLoadId;
+
+            mapMarkers.forEach(m => mapInstance.removeLayer(m));
+            mapMarkers = [];
+            document.getElementById('mapLinks').innerHTML = '';
+
+            if (uni.lat === undefined) {
+                setMapStatus(`🔎 Ищу «${uni.name}» на карте...`);
+                try {
+                    await ensureCoords(key);
+                } catch (e) {
+                    console.error('Geocoding failed:', e);
+                    if (loadId === mapLoadId) setMapStatus('⚠️ Не удалось найти университет на карте. Проверьте интернет и попробуйте ещё раз.');
+                    return;
+                }
+                if (loadId !== mapLoadId) return;
+                if (uni.lat === undefined) {
+                    setMapStatus('⚠️ Университет не найден в OpenStreetMap. Попробуйте другой вуз из этого города.');
+                    return;
+                }
+            }
+
+            mapInstance.setView([uni.lat, uni.lng], uni.approx ? 13 : 15);
+
+            const campusMarker = L.marker([uni.lat, uni.lng]).addTo(mapInstance)
+                .bindPopup(`<b>${escapeHtml(uni.name)}</b><br>${uni.approx ? 'Показан центр города: точное место вуза не найдено' : 'Ваш кампус'}`);
+            campusMarker.isCampus = true;
+            mapMarkers.push(campusMarker);
+
+            updateMapLinks(uni, uni.country);
+
+            setMapStatus((uni.approx ? '📍 Показан центр города. ' : '') + '⏳ Загружаю места рядом с кампусом...');
+            try {
+                const places = await fetchPlaces(key);
+                if (loadId !== mapLoadId) return; // за это время выбрали другой университет
+                places.forEach(p => {
+                    const marker = L.marker([p.lat, p.lng], { icon: makePlaceIcon(MAP_CATEGORIES[p.cats[0]].emoji) })
+                        .bindPopup(`<b>${escapeHtml(p.name)}</b><br>${p.cats.map(c => MAP_CATEGORIES[c].emoji + ' ' + MAP_CATEGORIES[c].label).join(', ')}`);
+                    marker.cats = p.cats;
+                    mapMarkers.push(marker);
+                });
+                applyMapFilter();
+            } catch (err) {
+                if (loadId !== mapLoadId) return;
+                console.error('Places load failed:', err);
+                setMapStatus('⚠️ Не удалось загрузить места (сервис карт не отвечает). Попробуйте позже или воспользуйтесь поиском ниже.');
+            }
+        }
+
+        function applyMapFilter() {
+            let shown = 0;
+            mapMarkers.forEach(m => {
+                if (!m.cats) return; // маркер кампуса остаётся всегда
+                const visible = currentMapFilter === 'all' || m.cats.includes(currentMapFilter);
+                if (visible) { mapInstance.addLayer(m); shown++; }
+                else mapInstance.removeLayer(m);
+            });
+            setMapStatus(shown
+                ? `Найдено мест: ${shown} (радиус ${MAP_RADIUS / 1000} км вокруг кампуса)`
+                : 'В этой категории ничего не найдено рядом с кампусом. Попробуйте поиск ниже.');
+        }
+
+        function filterMapMarkers(cat) {
+            currentMapFilter = cat;
+            document.querySelectorAll('.map-filter-btn').forEach(btn => {
+                const active = btn.dataset.cat === cat;
+                btn.classList.toggle('bg-blue-600', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('bg-slate-800', !active);
+                btn.classList.toggle('hover:bg-slate-700', !active);
+                btn.classList.toggle('text-slate-300', !active);
+            });
+            applyMapFilter();
+        }
+    </script>
+</body>
+</html>
