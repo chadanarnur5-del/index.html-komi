@@ -7,6 +7,19 @@ const MIRRORS = [
   'https://overpass.private.coffee/api/interpreter'
 ];
 
+// Две небольшие группы запросов (g=core или g=diet) — так надёжнее одного тяжёлого запроса
+const GROUPS = {
+  core: [
+    'nwr["shop"="convenience"]["opening_hours"="24/7"];',
+    'nwr["amenity"="pharmacy"];',
+    'nwr["amenity"="hospital"];'
+  ],
+  diet: [
+    'nwr["diet:halal"="yes"];', 'nwr["diet:halal"="only"];', 'nwr["cuisine"="halal"];',
+    'nwr["diet:vegan"="yes"];', 'nwr["diet:vegan"="only"];', 'nwr["cuisine"="vegan"];'
+  ]
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -14,20 +27,17 @@ module.exports = async (req, res) => {
   const lng = parseFloat(req.query.lng);
   let r = parseInt(req.query.r || '2000', 10);
   const m = Math.min(Math.max(parseInt(req.query.m || '0', 10) || 0, 0), MIRRORS.length - 1);
+  const group = GROUPS[req.query.g] ? req.query.g : 'core';
 
   if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return res.status(400).json({ error: 'Bad coordinates' });
   }
   r = Math.min(Math.max(isFinite(r) ? r : 2000, 200), 5000);
 
-  const a = `(around:${r},${lat},${lng})`;
-  const query = '[out:json][timeout:25];('
-    + `nwr${a}["diet:halal"~"^(yes|only)$"];`
-    + `nwr${a}["diet:vegan"~"^(yes|only)$"];`
-    + `nwr${a}["shop"="convenience"]["opening_hours"="24/7"];`
-    + `nwr${a}["amenity"="pharmacy"];`
-    + `nwr${a}["amenity"="hospital"];`
-    + ');out center tags 300;';
+  const dLat = r / 111320;
+  const dLng = r / (111320 * Math.max(Math.cos(lat * Math.PI / 180), 0.2));
+  const bbox = [lat - dLat, lng - dLng, lat + dLat, lng + dLng].map(v => v.toFixed(5)).join(',');
+  const query = `[out:json][timeout:20][bbox:${bbox}];(${GROUPS[group].join('')});out center tags 300;`;
 
   // Один запрос = одно зеркало (лимит времени функции на бесплатном тарифе ~10 с);
   // страница сама переберёт зеркала, передавая m=0,1,2
