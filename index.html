@@ -908,6 +908,50 @@
             else el.appendChild(document.createTextNode(' ' + val));
         }
 
+        // ---------- Перевод готовых пунктов чек-листа на язык интерфейса ----------
+        // Исходный текст хранится по-русски; перевод запрашивается один раз на язык и запоминается в браузере.
+        const trCache = {};
+        function loadTrCache(lang) {
+            if (!trCache[lang]) {
+                try { trCache[lang] = JSON.parse(localStorage.getItem('wcb_tr_' + lang) || '{}'); } catch (e) { trCache[lang] = {}; }
+            }
+            return trCache[lang];
+        }
+        const trQueue = new Set();
+        let trWorkers = 0, trRerenderTimer = null;
+
+        function tr(src) {
+            if (!src || appLang === 'ru') return src;
+            const cached = loadTrCache(appLang)[src];
+            if (cached) return cached;
+            trQueue.add(appLang + '\u0001' + src);
+            runTrQueue();
+            return src;
+        }
+
+        async function runTrQueue() {
+            while (trWorkers < 3 && trQueue.size) {
+                const item = trQueue.values().next().value;
+                trQueue.delete(item);
+                trWorkers++;
+                (async () => {
+                    const [lang, src] = item.split('\u0001');
+                    try {
+                        const res = await translateChunk(src, 'ru', lang);
+                        const cache = loadTrCache(lang);
+                        cache[src] = res;
+                        try { localStorage.setItem('wcb_tr_' + lang, JSON.stringify(cache)); } catch (e) {}
+                        if (lang === appLang) {
+                            clearTimeout(trRerenderTimer);
+                            trRerenderTimer = setTimeout(() => renderChecklist(), 200);
+                        }
+                    } catch (e) { /* оставим русский текст, повторим при следующем показе */ }
+                    trWorkers--;
+                    runTrQueue();
+                })();
+            }
+        }
+
         // ---------- Валюты по стране ----------
         const CURRENCIES = { KRW: { dec: 0 }, JPY: { dec: 0 }, CNY: { dec: 2 }, USD: { dec: 2 }, EUR: { dec: 2 }, GBP: { dec: 2 }, CHF: { dec: 2 }, SGD: { dec: 2 },
             AUD: { dec: 2 }, CAD: { dec: 2 }, HKD: { dec: 2 }, SEK: { dec: 2 }, DKK: { dec: 2 }, NOK: { dec: 2 } };
@@ -1413,8 +1457,8 @@
                     <div class="flex items-start gap-3 flex-1">
                         <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask(${index})" class="mt-1 w-4 h-4 rounded text-blue-600 border-slate-700 bg-slate-900 cursor-pointer">
                         <div>
-                            <span class="text-sm font-semibold ${task.done ? 'line-through text-slate-500' : 'text-slate-200'} block">${task.text}</span>
-                            ${task.desc ? `<span class="text-xs text-slate-400 block mt-0.5">${task.desc}</span>` : ''}
+                            <span class="text-sm font-semibold ${task.done ? 'line-through text-slate-500' : 'text-slate-200'} block">${escapeHtml(typeof task.id === 'string' ? tr(task.text) : task.text)}</span>
+                            ${task.desc ? `<span class="text-xs text-slate-400 block mt-0.5">${escapeHtml(typeof task.id === 'string' ? tr(task.desc) : t('customTask'))}</span>` : ''}
                         </div>
                     </div>
                     <button onclick="deleteTask(${index})" class="text-slate-500 hover:text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -1849,6 +1893,7 @@
                 if (val !== key) setText(el, val);
             });
             applyStaticLabels();
+            renderChecklist();
         }
 
         // ================== КАРТА ==================
@@ -1859,7 +1904,9 @@
             pharmacy: { emoji: '💊', label: 'Аптека' },
             hospital: { emoji: '🏥', label: 'Больница' }
         };
-        const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+        const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter', 'https://lz4.overpass-api.de/api/interpreter'];
+        const PROXY_MIRRORS = 3;                 // сколько зеркал перебирает серверная функция /api/overpass
+        const PLACES_TTL = 7 * 24 * 3600 * 1000; // сохранённые места держим неделю
         const MAP_RADIUS = 2000; // метров вокруг кампуса
         const placesCache = new Map();
         let currentMapFilter = 'all';
@@ -1874,52 +1921,143 @@
             if (el) el.textContent = text;
         }
 
-        function buildOverpassQuery(lat, lng) {
-            const a = `(around:${MAP_RADIUS},${lat},${lng})`;
-            return `[out:json][timeout:25];(`
-                + `nwr${a}["diet:halal"~"^(yes|only)$"];`
-                + `nwr${a}["diet:vegan"~"^(yes|only)$"];`
-                + `nwr${a}["shop"="convenience"]["opening_hours"="24/7"];`
-                + `nwr${a}["amenity"="pharmacy"];`
-                + `nwr${a}["amenity"="hospital"];`
-                + `);out center tags 300;`;
+        // Два небольших запроса вместо одного тяжёлого: так надёжнее, и если один не прошёл, второй всё равно покажется
+        const QUERY_GROUPS = {
+            core: { cats: ['24h', 'pharmacy', 'hospital'],
+                    parts: ['nwr["shop"="convenience"]["opening_hours"="24/7"];', 'nwr["amenity"="pharmacy"];', 'nwr["amenity"="hospital"];'] },
+            diet: { cats: ['halal', 'vegan'],
+                    parts: ['nwr["diet:halal"="yes"];', 'nwr["diet:halal"="only"];', 'nwr["cuisine"="halal"];',
+                            'nwr["diet:vegan"="yes"];', 'nwr["diet:vegan"="only"];', 'nwr["cuisine"="vegan"];'] }
+        };
+        let placesPartialCats = [];
+
+        function buildOverpassQuery(lat, lng, group) {
+            const dLat = MAP_RADIUS / 111320;
+            const dLng = MAP_RADIUS / (111320 * Math.max(Math.cos(lat * Math.PI / 180), 0.2));
+            const bbox = [lat - dLat, lng - dLng, lat + dLat, lng + dLng].map(v => v.toFixed(5)).join(',');
+            return `[out:json][timeout:20][bbox:${bbox}];(${QUERY_GROUPS[group].parts.join('')});out center tags 300;`;
         }
 
         function classifyPlace(tags) {
             const cats = [];
-            if (/^(yes|only)$/.test(tags['diet:halal'] || '')) cats.push('halal');
-            if (/^(yes|only)$/.test(tags['diet:vegan'] || '')) cats.push('vegan');
+            if (/^(yes|only)$/.test(tags['diet:halal'] || '') || tags.cuisine === 'halal') cats.push('halal');
+            if (/^(yes|only)$/.test(tags['diet:vegan'] || '') || tags.cuisine === 'vegan') cats.push('vegan');
             if (tags.shop === 'convenience' && tags.opening_hours === '24/7') cats.push('24h');
             if (tags.amenity === 'pharmacy') cats.push('pharmacy');
             if (tags.amenity === 'hospital') cats.push('hospital');
             return cats;
         }
 
+        function parsePlaces(data) {
+            return (data.elements || []).map(el => {
+                const lat = el.lat !== undefined ? el.lat : (el.center && el.center.lat);
+                const lng = el.lon !== undefined ? el.lon : (el.center && el.center.lon);
+                if (lat === undefined || lng === undefined) return null;
+                const tags = el.tags || {};
+                const cats = classifyPlace(tags);
+                if (!cats.length) return null;
+                const name = tags['name:ru'] || tags['name:en'] || tags.name || '';
+                return { lat, lng, cats, name };
+            }).filter(Boolean);
+        }
+
+        function readPlacesStore(uniKey) {
+            try {
+                const saved = JSON.parse(localStorage.getItem('wcb_places2_' + uniKey));
+                if (saved && Date.now() - saved.t < PLACES_TTL && Array.isArray(saved.places)) return saved.places;
+            } catch (e) {}
+            return null;
+        }
+        function writePlacesStore(uniKey, places) {
+            try { localStorage.setItem('wcb_places2_' + uniKey, JSON.stringify({ t: Date.now(), places })); } catch (e) {}
+        }
+
+        // Берём ответ первого успешного запроса (без Promise.any — работает и в старых браузерах)
+        function firstSuccess(promises) {
+            return new Promise((resolve, reject) => {
+                let left = promises.length;
+                const errors = [];
+                promises.forEach(pr => pr.then(resolve, e => {
+                    errors.push(e);
+                    if (--left === 0) { const agg = new Error('all failed'); agg.errors = errors; reject(agg); }
+                }));
+            });
+        }
+
+        async function fetchGroup(uni, group) {
+            const query = buildOverpassQuery(uni.lat, uni.lng, group);
+            const direct = base => () => fetchWithTimeout(base, 18000, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'data=' + encodeURIComponent(query)
+            });
+            const proxy = m => () => fetchWithTimeout(`/api/overpass?lat=${uni.lat}&lng=${uni.lng}&r=${MAP_RADIUS}&m=${m}&g=${group}`, 12000);
+            const host = i => [new URL(OVERPASS_URLS[i]).hostname, direct(OVERPASS_URLS[i])];
+            const useProxy = location.protocol.startsWith('http');
+
+            // Три раунда: в каждом параллельно пробуем несколько зеркал, берём первое ответившее
+            const stages = [
+                [...(useProxy ? [['server#1', proxy(0)]] : []), host(0)],
+                [...(useProxy ? [['server#2', proxy(1)]] : []), host(1), host(2)],
+                [...(useProxy ? [['server#3', proxy(2)]] : []), host(3), host(4)]
+            ];
+
+            const errors = [];
+            for (const stage of stages) {
+                try {
+                    return await firstSuccess(stage.map(async ([name, run]) => {
+                        try {
+                            const response = await run();
+                            if (!response.ok) throw new Error('HTTP ' + response.status);
+                            const data = await response.json();
+                            if (!data || !Array.isArray(data.elements)) throw new Error('bad response');
+                            if (data.remark && !data.elements.length) throw new Error(String(data.remark).slice(0, 60)); // сервер перегружен
+                            return parsePlaces(data);
+                        } catch (e) {
+                            throw new Error(`${name}: ${e.name === 'AbortError' ? 'timeout' : e.message}`);
+                        }
+                    }));
+                } catch (agg) {
+                    (agg.errors || [agg]).forEach(e => errors.push(e.message));
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+            }
+            throw new Error(errors.join(' | '));
+        }
+
         async function fetchPlaces(uniKey) {
             if (placesCache.has(uniKey)) return placesCache.get(uniKey);
+            const stored = readPlacesStore(uniKey);
+            if (stored) { placesCache.set(uniKey, stored); return stored; }
+
             const uni = universityCoords[uniKey];
-            const query = buildOverpassQuery(uni.lat, uni.lng);
-            let lastErr;
-            for (const base of OVERPASS_URLS) {
-                try {
-                    const response = await fetchWithTimeout(`${base}?data=${encodeURIComponent(query)}`, 25000);
-                    if (!response.ok) throw new Error(`Overpass HTTP ${response.status}`);
-                    const data = await response.json();
-                    const places = (data.elements || []).map(el => {
-                        const lat = el.lat !== undefined ? el.lat : (el.center && el.center.lat);
-                        const lng = el.lon !== undefined ? el.lon : (el.center && el.center.lon);
-                        if (lat === undefined || lng === undefined) return null;
-                        const tags = el.tags || {};
-                        const cats = classifyPlace(tags);
-                        if (!cats.length) return null;
-                        const name = tags['name:ru'] || tags['name:en'] || tags.name || catLabel(cats[0]);
-                        return { lat, lng, cats, name };
-                    }).filter(Boolean);
-                    placesCache.set(uniKey, places);
-                    return places;
-                } catch (e) { lastErr = e; }
+            const groups = Object.keys(QUERY_GROUPS);
+            const results = await Promise.allSettled(groups.map(g => fetchGroup(uni, g)));
+
+            const places = [];
+            const seen = new Set();
+            const missing = [];
+            const errors = [];
+            results.forEach((r, i) => {
+                if (r.status === 'fulfilled') {
+                    r.value.forEach(p => {
+                        const id = `${p.lat.toFixed(5)},${p.lng.toFixed(5)},${p.name}`;
+                        if (!seen.has(id)) { seen.add(id); places.push(p); }
+                    });
+                } else {
+                    missing.push(...QUERY_GROUPS[groups[i]].cats);
+                    errors.push(`${groups[i]}: ${r.reason.message}`);
+                }
+            });
+
+            if (results.every(r => r.status === 'rejected')) throw new Error(errors.join(' || '));
+
+            places.missing = missing;
+            if (!missing.length && places.length) { // неполные и пустые результаты не запоминаем
+                placesCache.set(uniKey, places);
+                writePlacesStore(uniKey, places);
             }
-            throw lastErr || new Error('Overpass unavailable');
+            return places;
         }
 
         function makePlaceIcon(emoji) {
@@ -2039,11 +2177,13 @@
 
             setMapStatus((uni.approx ? t('cityCenter') + ' ' : '') + t('loadingPlaces'));
             try {
+                placesPartialCats = [];
                 const places = await fetchPlaces(key);
                 if (loadId !== mapLoadId) return; // за это время выбрали другой университет
+                placesPartialCats = places.missing || [];
                 places.forEach(p => {
                     const marker = L.marker([p.lat, p.lng], { icon: makePlaceIcon(MAP_CATEGORIES[p.cats[0]].emoji) })
-                        .bindPopup(`<b>${escapeHtml(p.name)}</b><br>${p.cats.map(c => MAP_CATEGORIES[c].emoji + ' ' + catLabel(c)).join(', ')}`);
+                        .bindPopup(`<b>${escapeHtml(p.name || catLabel(p.cats[0]))}</b><br>${p.cats.map(c => MAP_CATEGORIES[c].emoji + ' ' + catLabel(c)).join(', ')}`);
                     marker.cats = p.cats;
                     mapMarkers.push(marker);
                 });
@@ -2051,7 +2191,7 @@
             } catch (err) {
                 if (loadId !== mapLoadId) return;
                 console.error('Places load failed:', err);
-                setMapStatus(t('placesFail'));
+                setMapStatus(t('placesFail') + ' [' + String(err.message).slice(0, 220) + ']');
             }
         }
 
@@ -2063,9 +2203,11 @@
                 if (visible) { mapInstance.addLayer(m); shown++; }
                 else mapInstance.removeLayer(m);
             });
-            setMapStatus(shown
+            let status = shown
                 ? t('foundPlaces', { n: shown, r: MAP_RADIUS / 1000 })
-                : t('noneInCat'));
+                : t('noneInCat');
+            if (placesPartialCats.length) status += ' ⚠ ' + placesPartialCats.map(catLabel).join(', ');
+            setMapStatus(status);
         }
 
         function filterMapMarkers(cat) {
